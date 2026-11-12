@@ -1,0 +1,3 @@
+a91eb12deb3671d1141d5b01c4c4885ed336cc7a0113e813a42a7d0729bf77be  demo-baseline.html
+# 来源：/workspace/frontend-handoff/当前界面.html（交接文档中的 index.html）
+# 字节数：72486；与源文件 cmp 一致。冻结日期：2026-11-10。

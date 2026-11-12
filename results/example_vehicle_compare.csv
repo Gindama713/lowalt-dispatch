@@ -1,0 +1,121 @@
+﻿scenario_id,cls,seed,algorithm,run_mode,task_feasible,task_result,hard_violations,negative_margin_samples,min_landing_margin,route_length_m,energy_used_wh,replan_latency_ms,infeasible_reason
+S1-01,S1,1,astar_static,real,False,failed,1,1,-5.1884,3647.2,188.36,237.6,备降余量剖面不可行（负余量样本 1，最小余量 -5.188383542068344 Wh）
+S1-01,S1,1,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,542.7,无可行路线：390 个状态因剩余能量扣掉保留量后到不了备降点而被剪枝。未返回放宽约束后的路线。
+S1-01,S1,2,astar_static,real,False,failed,1,1,-5.1884,3647.2,188.36,16.1,备降余量剖面不可行（负余量样本 1，最小余量 -5.188383542068344 Wh）
+S1-01,S1,2,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,521.4,无可行路线：390 个状态因剩余能量扣掉保留量后到不了备降点而被剪枝。未返回放宽约束后的路线。
+S1-01,S1,3,astar_static,real,False,failed,1,1,-5.1884,3647.2,188.36,16.2,备降余量剖面不可行（负余量样本 1，最小余量 -5.188383542068344 Wh）
+S1-01,S1,3,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,521.2,无可行路线：390 个状态因剩余能量扣掉保留量后到不了备降点而被剪枝。未返回放宽约束后的路线。
+S1-02,S1,1,astar_static,real,True,delivered,0,0,25.6214,3680.3,189.01,2.4,
+S1-02,S1,1,astar_diversion,real,True,delivered,0,0,25.6214,3680.3,189.01,2.8,
+S1-02,S1,2,astar_static,real,True,delivered,0,0,25.6214,3680.3,189.01,2.2,
+S1-02,S1,2,astar_diversion,real,True,delivered,0,0,25.6214,3680.3,189.01,2.7,
+S1-02,S1,3,astar_static,real,True,delivered,0,0,25.6214,3680.3,189.01,2.2,
+S1-02,S1,3,astar_diversion,real,True,delivered,0,0,25.6214,3680.3,189.01,2.9,
+S1-03,S1,1,astar_static,real,True,delivered,0,0,77.3482,2497.1,132.85,38.0,
+S1-03,S1,1,astar_diversion,real,True,delivered,0,0,77.3482,2497.1,132.85,43.8,
+S1-03,S1,2,astar_static,real,True,delivered,0,0,77.3482,2497.1,132.85,37.2,
+S1-03,S1,2,astar_diversion,real,True,delivered,0,0,77.3482,2497.1,132.85,44.8,
+S1-03,S1,3,astar_static,real,True,delivered,0,0,77.3482,2497.1,132.85,38.0,
+S1-03,S1,3,astar_diversion,real,True,delivered,0,0,77.3482,2497.1,132.85,44.5,
+S1-04,S1,1,astar_static,real,True,delivered,0,0,54.2412,2757.2,143.86,7.8,
+S1-04,S1,1,astar_diversion,real,True,delivered,0,0,54.4711,2752.6,143.63,9.1,
+S1-04,S1,2,astar_static,real,True,delivered,0,0,54.2412,2757.2,143.86,7.7,
+S1-04,S1,2,astar_diversion,real,True,delivered,0,0,54.4711,2752.6,143.63,9.1,
+S1-04,S1,3,astar_static,real,True,delivered,0,0,54.2412,2757.2,143.86,7.3,
+S1-04,S1,3,astar_diversion,real,True,delivered,0,0,54.4711,2752.6,143.63,8.9,
+S1-05,S1,1,astar_static,real,True,delivered,0,0,108.3934,1983.2,106.16,1.3,
+S1-05,S1,1,astar_diversion,real,True,delivered,0,0,108.3934,1983.2,106.16,1.7,
+S1-05,S1,2,astar_static,real,True,delivered,0,0,108.3934,1983.2,106.16,1.3,
+S1-05,S1,2,astar_diversion,real,True,delivered,0,0,108.3934,1983.2,106.16,1.6,
+S1-05,S1,3,astar_static,real,True,delivered,0,0,108.3934,1983.2,106.16,1.1,
+S1-05,S1,3,astar_diversion,real,True,delivered,0,0,108.3934,1983.2,106.16,1.5,
+S2-01,S2,1,astar_static,real,True,delivered,0,0,8.0543,3405.8,176.29,4.7,
+S2-01,S2,1,astar_diversion,real,True,delivered,0,0,8.0543,3405.8,176.29,5.8,
+S2-01,S2,2,astar_static,real,True,delivered,0,0,8.0543,3405.8,176.29,4.9,
+S2-01,S2,2,astar_diversion,real,True,delivered,0,0,8.0543,3405.8,176.29,5.7,
+S2-01,S2,3,astar_static,real,True,delivered,0,0,8.0543,3405.8,176.29,5.0,
+S2-01,S2,3,astar_diversion,real,True,delivered,0,0,8.0543,3405.8,176.29,5.8,
+S2-02,S2,1,astar_static,real,True,delivered,0,0,13.8593,3328.4,172.42,25.2,
+S2-02,S2,1,astar_diversion,real,True,delivered,0,0,13.8593,3328.4,172.42,28.1,
+S2-02,S2,2,astar_static,real,True,delivered,0,0,13.8593,3328.4,172.42,25.0,
+S2-02,S2,2,astar_diversion,real,True,delivered,0,0,13.8593,3328.4,172.42,28.3,
+S2-02,S2,3,astar_static,real,True,delivered,0,0,13.8593,3328.4,172.42,24.6,
+S2-02,S2,3,astar_diversion,real,True,delivered,0,0,13.8593,3328.4,172.42,28.3,
+S2-03,S2,1,astar_static,real,True,delivered,0,0,63.1127,3114.6,161.73,1.9,
+S2-03,S2,1,astar_diversion,real,True,delivered,0,0,63.1127,3114.6,161.73,2.6,
+S2-03,S2,2,astar_static,real,True,delivered,0,0,63.1127,3114.6,161.73,1.9,
+S2-03,S2,2,astar_diversion,real,True,delivered,0,0,63.1127,3114.6,161.73,2.4,
+S2-03,S2,3,astar_static,real,True,delivered,0,0,63.1127,3114.6,161.73,2.0,
+S2-03,S2,3,astar_diversion,real,True,delivered,0,0,63.1127,3114.6,161.73,2.5,
+S2-04,S2,1,astar_static,real,True,delivered,0,0,87.6432,2189.7,115.49,222.9,
+S2-04,S2,1,astar_diversion,real,True,delivered,0,0,87.6432,2189.7,115.49,19.4,
+S2-04,S2,2,astar_static,real,True,delivered,0,0,87.6432,2189.7,115.49,17.4,
+S2-04,S2,2,astar_diversion,real,True,delivered,0,0,87.6432,2189.7,115.49,19.4,
+S2-04,S2,3,astar_static,real,True,delivered,0,0,87.6432,2189.7,115.49,17.6,
+S2-04,S2,3,astar_diversion,real,True,delivered,0,0,87.6432,2189.7,115.49,19.3,
+S2-05,S2,1,astar_static,real,True,delivered,0,0,67.2584,3017.6,156.88,67.2,
+S2-05,S2,1,astar_diversion,real,True,delivered,0,0,67.2584,3017.6,156.88,71.8,
+S2-05,S2,2,astar_static,real,True,delivered,0,0,67.2584,3017.6,156.88,68.8,
+S2-05,S2,2,astar_diversion,real,True,delivered,0,0,67.2584,3017.6,156.88,70.2,
+S2-05,S2,3,astar_static,real,True,delivered,0,0,67.2584,3017.6,156.88,63.1,
+S2-05,S2,3,astar_diversion,real,True,delivered,0,0,67.2584,3017.6,156.88,69.8,
+S3-01,S3,1,astar_static,real,True,delivered,0,0,18.6609,3264.4,169.22,4.8,
+S3-01,S3,1,astar_diversion,real,True,delivered,0,0,18.6609,3264.4,169.22,5.7,
+S3-01,S3,2,astar_static,real,True,delivered,0,0,18.6609,3264.4,169.22,4.7,
+S3-01,S3,2,astar_diversion,real,True,delivered,0,0,18.6609,3264.4,169.22,5.6,
+S3-01,S3,3,astar_static,real,True,delivered,0,0,18.6609,3264.4,169.22,4.5,
+S3-01,S3,3,astar_diversion,real,True,delivered,0,0,18.6609,3264.4,169.22,5.6,
+S3-02,S3,1,astar_static,real,True,delivered,0,0,45.6274,3397.5,175.87,2.0,
+S3-02,S3,1,astar_diversion,real,True,delivered,0,0,45.6274,3397.5,175.87,2.7,
+S3-02,S3,2,astar_static,real,True,delivered,0,0,45.6274,3397.5,175.87,2.0,
+S3-02,S3,2,astar_diversion,real,True,delivered,0,0,45.6274,3397.5,175.87,2.6,
+S3-02,S3,3,astar_static,real,True,delivered,0,0,45.6274,3397.5,175.87,1.9,
+S3-02,S3,3,astar_diversion,real,True,delivered,0,0,45.6274,3397.5,175.87,2.5,
+S3-03,S3,1,astar_static,real,True,delivered,0,0,70.6939,2557.3,134.87,3.2,
+S3-03,S3,1,astar_diversion,real,True,delivered,0,0,70.6939,2557.3,134.87,4.1,
+S3-03,S3,2,astar_static,real,True,delivered,0,0,70.6939,2557.3,134.87,3.3,
+S3-03,S3,2,astar_diversion,real,True,delivered,0,0,70.6939,2557.3,134.87,4.0,
+S3-03,S3,3,astar_static,real,True,delivered,0,0,70.6939,2557.3,134.87,3.2,
+S3-03,S3,3,astar_diversion,real,True,delivered,0,0,70.6939,2557.3,134.87,3.9,
+S3-04,S3,1,astar_static,real,True,delivered,0,0,74.0528,2448.5,128.43,38.5,
+S3-04,S3,1,astar_diversion,real,True,delivered,0,0,74.0528,2448.5,128.43,42.7,
+S3-04,S3,2,astar_static,real,True,delivered,0,0,74.0528,2448.5,128.43,38.2,
+S3-04,S3,2,astar_diversion,real,True,delivered,0,0,74.0528,2448.5,128.43,42.3,
+S3-04,S3,3,astar_static,real,True,delivered,0,0,74.0528,2448.5,128.43,39.0,
+S3-04,S3,3,astar_diversion,real,True,delivered,0,0,74.0528,2448.5,128.43,42.9,
+S3-05,S3,1,astar_static,real,True,delivered,0,0,79.8909,2831.8,147.59,1.9,
+S3-05,S3,1,astar_diversion,real,True,delivered,0,0,79.8909,2831.8,147.59,2.2,
+S3-05,S3,2,astar_static,real,True,delivered,0,0,79.8909,2831.8,147.59,1.6,
+S3-05,S3,2,astar_diversion,real,True,delivered,0,0,79.8909,2831.8,147.59,2.2,
+S3-05,S3,3,astar_static,real,True,delivered,0,0,79.8909,2831.8,147.59,1.8,
+S3-05,S3,3,astar_diversion,real,True,delivered,0,0,79.8909,2831.8,147.59,2.1,
+S4-01,S4,1,astar_static,real,False,failed,1,0,29.2675,3123.0,162.15,4.3,载荷 6.00 kg 超出机型最大载荷 3.00 kg
+S4-01,S4,1,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,载荷 6.00 kg 超出机型最大载荷 3.00 kg，任务在规划阶段即不可行
+S4-01,S4,2,astar_static,real,False,failed,1,0,29.2675,3123.0,162.15,4.2,载荷 6.00 kg 超出机型最大载荷 3.00 kg
+S4-01,S4,2,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,载荷 6.00 kg 超出机型最大载荷 3.00 kg，任务在规划阶段即不可行
+S4-01,S4,3,astar_static,real,False,failed,1,0,29.2675,3123.0,162.15,4.0,载荷 6.00 kg 超出机型最大载荷 3.00 kg
+S4-01,S4,3,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,载荷 6.00 kg 超出机型最大载荷 3.00 kg，任务在规划阶段即不可行
+S4-02,S4,1,astar_static,real,False,failed,2,3,-13.1589,3688.7,190.43,5.4,预计飞行 317 s，超过时限 90 s；备降余量剖面不可行（负余量样本 3，最小余量 -13.158946290545565 Wh）
+S4-02,S4,1,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,53.1,无可行路线：377 个状态超出任务时限。未返回放宽约束后的路线。
+S4-02,S4,2,astar_static,real,False,failed,2,3,-13.1589,3688.7,190.43,5.6,预计飞行 317 s，超过时限 90 s；备降余量剖面不可行（负余量样本 3，最小余量 -13.158946290545565 Wh）
+S4-02,S4,2,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,53.7,无可行路线：377 个状态超出任务时限。未返回放宽约束后的路线。
+S4-02,S4,3,astar_static,real,False,failed,2,3,-13.1589,3688.7,190.43,5.4,预计飞行 317 s，超过时限 90 s；备降余量剖面不可行（负余量样本 3，最小余量 -13.158946290545565 Wh）
+S4-02,S4,3,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,54.9,无可行路线：377 个状态超出任务时限。未返回放宽约束后的路线。
+S4-03,S4,1,astar_static,real,False,failed,1,50,-1000000.0,2402.9,126.14,1.8,备降余量剖面不可行（负余量样本 50，最小余量 -1000000.0 Wh）
+S4-03,S4,1,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,无当前有效备降点。L1 在 t=0 关闭；L2 在 t=0 关闭；L3 在 t=0 关闭；L4 在 t=0 关闭。不会返回一条没有退出方案的路线。
+S4-03,S4,2,astar_static,real,False,failed,1,50,-1000000.0,2402.9,126.14,1.7,备降余量剖面不可行（负余量样本 50，最小余量 -1000000.0 Wh）
+S4-03,S4,2,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,无当前有效备降点。L1 在 t=0 关闭；L2 在 t=0 关闭；L3 在 t=0 关闭；L4 在 t=0 关闭。不会返回一条没有退出方案的路线。
+S4-03,S4,3,astar_static,real,False,failed,1,50,-1000000.0,2402.9,126.14,1.8,备降余量剖面不可行（负余量样本 50，最小余量 -1000000.0 Wh）
+S4-03,S4,3,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,无当前有效备降点。L1 在 t=0 关闭；L2 在 t=0 关闭；L3 在 t=0 关闭；L4 在 t=0 关闭。不会返回一条没有退出方案的路线。
+S4-04,S4,1,astar_static,real,False,infeasible,0,0,,0.0,0.0,210.4,终点周围没有可用单元（目的地可能在限制区内）
+S4-04,S4,1,astar_diversion,real,False,infeasible,0,0,,0.0,0.0,0.3,终点周围没有可用单元（目的地可能在限制区内）
+S4-04,S4,2,astar_static,real,False,infeasible,0,0,,0.0,0.0,0.1,终点周围没有可用单元（目的地可能在限制区内）
+S4-04,S4,2,astar_diversion,real,False,infeasible,0,0,,0.0,0.0,0.2,终点周围没有可用单元（目的地可能在限制区内）
+S4-04,S4,3,astar_static,real,False,infeasible,0,0,,0.0,0.0,0.1,终点周围没有可用单元（目的地可能在限制区内）
+S4-04,S4,3,astar_diversion,real,False,infeasible,0,0,,0.0,0.0,0.2,终点周围没有可用单元（目的地可能在限制区内）
+S4-05,S4,1,astar_static,real,False,failed,1,55,-209.7233,2657.2,138.86,7.4,备降余量剖面不可行（负余量样本 55，最小余量 -209.72327445381515 Wh）
+S4-05,S4,1,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,初始能量 20.0 Wh 低于策略保留量 50.0 Wh，起飞前已不满足备降约束（E_left - E_reserve < 0）
+S4-05,S4,2,astar_static,real,False,failed,1,55,-209.7233,2657.2,138.86,7.2,备降余量剖面不可行（负余量样本 55，最小余量 -209.72327445381515 Wh）
+S4-05,S4,2,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,初始能量 20.0 Wh 低于策略保留量 50.0 Wh，起飞前已不满足备降约束（E_left - E_reserve < 0）
+S4-05,S4,3,astar_static,real,False,failed,1,55,-209.7233,2657.2,138.86,7.1,备降余量剖面不可行（负余量样本 55，最小余量 -209.72327445381515 Wh）
+S4-05,S4,3,astar_diversion,real,False,infeasible,1,0,,0.0,0.0,0.0,初始能量 20.0 Wh 低于策略保留量 50.0 Wh，起飞前已不满足备降约束（E_left - E_reserve < 0）

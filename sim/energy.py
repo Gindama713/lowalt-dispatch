@@ -60,6 +60,9 @@ class VehicleProfile:
     battery_capacity_wh: float | None = None
     source: str | None = None
     uncertainty_note: str | None = None
+    is_example: bool = False
+    display_name: str | None = None
+    draft_geometry_vehicle_alias: str | None = None
 
     @property
     def wind_note(self) -> str:
@@ -90,12 +93,16 @@ def load_vehicle(path: Path | None = None, key: str | None = None) -> VehiclePro
             "        并在 uncertainty_note 里标'未标定'）。补齐前请继续使用 mock 规划器。"
         )
 
+    alias = entry.get("draft_geometry_vehicle_alias")
     return VehicleProfile(
         vehicle_key=vehicle_key,
         **{f: float(entry[f]) for f in REQUIRED_NUMERIC},
         **{f: (float(entry[f]) if entry.get(f) is not None else None) for f in OPTIONAL_NUMERIC},
         source=entry.get("source"),
         uncertainty_note=entry.get("uncertainty_note"),
+        is_example=bool(entry.get("is_example", False) or raw.get("is_example", False)),
+        display_name=entry.get("display_name"),
+        draft_geometry_vehicle_alias=None if alias is None else str(alias),
     )
 
 

@@ -133,37 +133,62 @@ def test_risk_event_alt_band_ordered() -> None:
 # --------------------------------------------------------------------------- #
 # harness：可复现 + 产物格式
 # --------------------------------------------------------------------------- #
-def test_planner_is_deterministic() -> None:
+def test_margin_profile_without_site_is_not_feasible_even_if_margin_non_negative() -> None:
+    """没有备降点就不是 0 余量。正的 margin 也不能把这种采样点算成可行。"""
+    prof = DiversionMarginProfile(
+        route_id="R1",
+        plan_version="v1",
+        reserve_wh=50.0,
+        samples=[
+            DiversionMarginSample(s_m=0, t_s=0, margin_wh=10.0, nearest_site_id=None),
+        ],
+    )
+    assert not prof.is_feasible
+
+
+def test_mock_planner_is_deterministic() -> None:
     scenario = {"id": "S1-01", "origin": {"x_m": 0, "y_m": 0}, "destination": {"x_m": 1000, "y_m": 1000}}
-    planner = planners.get("astar_diversion")
+    planner = planners.get("astar_dynamic")
+    assert planner.is_mock
     a = planner.plan(scenario, seed=7)
     b = planner.plan(scenario, seed=7)
     assert a == b
 
 
-def test_planner_varies_by_seed() -> None:
+def test_mock_planner_varies_by_seed() -> None:
     scenario = {"id": "S1-01", "origin": {"x_m": 0, "y_m": 0}, "destination": {"x_m": 1000, "y_m": 1000}}
-    planner = planners.get("astar_diversion")
+    planner = planners.get("astar_dynamic")
     assert planner.plan(scenario, seed=1) != planner.plan(scenario, seed=2)
 
 
 def test_harness_end_to_end_marks_mock(tmp_path: Path) -> None:
     out = tmp_path / "v0.csv"
-    code = run.main(["--suite", str(SUITE), "--seeds", "1,2", "--out", str(out)])
+    code = run.main(
+        ["--suite", str(SUITE), "--seeds", "1,2", "--algorithms", "astar_dynamic", "--out", str(out)]
+    )
     assert code == 0
 
     mock_csv = tmp_path / "v0_MOCK.csv"
     assert mock_csv.is_file(), "mock 运行必须自动加 _MOCK 后缀"
-    assert not out.exists(), "不应产出未标记的 CSV"
+    assert not out.exists(), "纯 mock 不应产出未标记的 CSV"
 
     with mock_csv.open(encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.DictReader(fh))
 
     scenario_count = len(yaml.safe_load(SUITE.read_text(encoding="utf-8"))["scenarios"])
-    assert len(rows) == scenario_count * 2 * len(planners.ALGORITHMS)
+    assert len(rows) == scenario_count * 2
     assert {r["run_mode"] for r in rows} == {"mock"}
-    assert all(r["scenario_id"] for r in rows)
+    assert {r["algorithm"] for r in rows} == {"astar_dynamic"}
 
     meta = mock_csv.with_suffix(".meta.json")
     assert meta.is_file()
     assert '"run_mode": "mock"' in meta.read_text(encoding="utf-8")
+
+
+def test_real_algorithms_require_an_explicit_vehicle(tmp_path: Path) -> None:
+    out = tmp_path / "v0.csv"
+    code = run.main(
+        ["--suite", str(SUITE), "--seeds", "1", "--algorithms", "astar_static", "--out", str(out)]
+    )
+    assert code == 2
+    assert not out.exists()

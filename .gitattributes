@@ -10,6 +10,9 @@
 *.png binary
 *.jpg binary
 *.jpeg binary
+*.blend binary
+*.glb binary
+*.gltf binary
 *.mp4 binary
 *.ulg binary
 *.bag binary

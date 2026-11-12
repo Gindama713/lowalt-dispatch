@@ -1,0 +1,36 @@
+{
+  "run_mode": "real",
+  "eval_scope": "planning_only_not_flight",
+  "is_simulated": true,
+  "generated_at": "2026-11-09T12:19:15+00:00",
+  "suite_path": "eval/scenarios/v0.yaml",
+  "suite_sha256": "ebfdef2e8df0f43c609009c6e7c394b1e3d655acc227aa221f54ec145cb9610c",
+  "scenario_count": 20,
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "algorithms": [
+    "astar_static",
+    "astar_diversion"
+  ],
+  "git_commit": "088b4f9",
+  "python": "3.12.3",
+  "platform": "Linux-6.12.113+-x86_64-with-glibc2.39",
+  "seed_effect": "astar_dynamic 的 mock 随种子变化；astar_static 与 astar_diversion 是确定性的，种子不改变航线",
+  "task_result_note": "delivered 在这里只表示规划层硬约束通过，不是飞控送达，也不是实飞",
+  "diversion_approximation": "备降路径近似：与主航线相同的占用栅格（障碍 + at_s=0 的限制区，圆形净空膨胀），八邻域最短路，进入备降半径即到达；能耗为一次爬升加无风巡航，不计转弯。搜索比折线采样多扣一格对角线。目的地不算备降点；at_s>0 的事件不进入本版。示例机型参数不是真实平台数据。",
+  "sha256_obstacles.geojson": "20be3a694bf908a41beffbf7dfa5197d4ad4aae3eac6136fac0f8d4b7c5fa43d",
+  "sha256_zones.geojson": "2e316e0895e4b71038c9b73285bcc5a1a217835c053ae8734921d1841fb1bba1",
+  "sha256_landing_sites.geojson": "de08bb4e35e8481188424fc8e233261a14bc82aac6eb98c97df2af496c3f3e04",
+  "row_count": 120,
+  "vehicle_path": "scenarios/vehicles/example_not_real.yaml",
+  "vehicle_sha256": "cf3db98bc03ae2ec77f7b6969ab810c5afab5cd3bd4ee9e2605740913899ee2d",
+  "vehicle_key": "example_not_real",
+  "vehicle_is_example": true,
+  "vehicle_source": "synthetic:example_not_real_v0",
+  "vehicle_uncertainty_note": "整组参数为手写示例，未标定；无风；误差范围未知。不能当作真实平台数据。",
+  "draft_geometry_vehicle_alias": "placeholder",
+  "warning": "示例机型参数，非真实平台数据。能耗、备降余量和可行/不可行只对这组手写数字成立，不能写成实测能耗、适航结论或任务完成率提升。"
+}

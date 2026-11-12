@@ -31,6 +31,12 @@ dist-ssr/
 logs/
 logs_*/
 
+# ---------- API 本地库 ----------
+# SQLite 是开发存储，不是评测证据。PostgreSQL 尚未接入。
+data/
+*.sqlite
+*.sqlite3
+
 # ---------- 结果目录 ----------
 # 真实评测结果（run_mode=real）在冻结版本时提交，属于证据。
 # mock 产物永不入库：它每次运行都会因时间戳变化产生 diff，而且一旦进了仓库，

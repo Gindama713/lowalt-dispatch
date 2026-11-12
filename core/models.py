@@ -205,7 +205,15 @@ class DiversionMarginSample(BaseModel):
     t_s: float = Field(ge=0, description="预计飞行时间")
     margin_wh: float = Field(description="E_left - E_reserve - E_need_to_nearest_valid_landing，单位 Wh")
     nearest_site_id: str | None = Field(
-        default=None, description="该采样点最近的可用备降点；None 表示无有效退出路径"
+        default=None,
+        description="该采样点能量意义上最近的可用备降点；None 表示无有效退出路径",
+    )
+    energy_need_wh: float | None = Field(
+        default=None,
+        description=(
+            "到 nearest_site_id 的能耗（Wh）。None 且 nearest_site_id 为 None 时，"
+            "表示几何上没有可达备降点；此时 margin_wh 只是负的哨兵值，不是物理缺口"
+        ),
     )
 
 
@@ -229,8 +237,16 @@ class DiversionMarginProfile(BaseModel):
 
     @property
     def is_feasible(self) -> bool:
-        """全程非负才算可行。空剖面视为不可信，按不可行处理。"""
-        return bool(self.samples) and self.negative_sample_count == 0
+        """全程非负、样本非空，且每个采样点都有备降点，才算可行。
+
+        空剖面不可信。nearest_site_id 为 None 表示没有有效退出路径，
+        即使 margin_wh 被误填成非负也按不可行处理。
+        """
+        if not self.samples:
+            return False
+        if any(sample.nearest_site_id is None for sample in self.samples):
+            return False
+        return self.negative_sample_count == 0
 
 
 class RoutePlan(BaseModel):

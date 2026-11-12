@@ -1,7 +1,8 @@
 """A* 基线（`astar_static`）。
 
 这一版**只做几何可达**：避开建筑和"起飞时已知"的限制区，找一条最短路径。
-不听时间、不算能量、不考虑备降——那些是后续 `diversion` 版本的事。
+不听时间、不算能量、不考虑备降——那些在 `planner/diversion.py`。
+g 和启发都用米；以前 g 用格数、启发用米，最短路保证是坏的。
 
 故意保持"笨"：它是基线 1，用来证明后面加的东西确实改变了结果。
 基线如果自己就很聪明，消融实验就没有说服力了。
@@ -17,6 +18,7 @@ import heapq
 import itertools
 import math
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from core.console import ensure_utf8_stdout
@@ -46,10 +48,17 @@ class PathResult:
     elapsed_ms: float = 0.0
     reason: str | None = None
     snapped: bool = False
+    pruned: int = 0
+    prune_counts: dict[str, int] = field(default_factory=dict)
+
+
+# accept_state(cell, g_m) 返回 None 表示这个状态可以搜索；返回字符串则剪枝。
+# 字符串是原因类别（如 "diversion"），由调用方翻译成可读说明。
+AcceptState = Callable[[tuple[int, int], float], str | None]
 
 
 def _heuristic(dy: int, dx: int, res_m: float) -> float:
-    """八邻域的可采纳启发：octile 距离。"""
+    """八邻域可采纳启发：octile 距离，单位米。必须和 g 用同一单位。"""
     ady, adx = abs(dy), abs(dx)
     return res_m * ((ady + adx) + (SQRT2 - 2.0) * min(ady, adx))
 
@@ -60,6 +69,8 @@ def plan(
     goal_xy: tuple[float, float],
     *,
     max_expand: int = 500_000,
+    initial_g_m: float = 0.0,
+    accept_state: AcceptState | None = None,
 ) -> PathResult:
     t0 = time.perf_counter()
 
@@ -73,8 +84,28 @@ def plan(
     if g is None:
         return done(found=False, reason="终点周围没有可用单元（目的地可能在限制区内）")
     snapped = s != grid.to_ij(*start_xy) or g != grid.to_ij(*goal_xy)
+    prune_counts: dict[str, int] = {}
+
+    def reject(node: tuple[int, int], g_m: float) -> str | None:
+        if accept_state is None:
+            return None
+        reason = accept_state(node, g_m)
+        if reason is None:
+            return None
+        prune_counts[reason] = prune_counts.get(reason, 0) + 1
+        return reason
 
     if s == g:
+        g_exact = math.hypot(goal_xy[0] - start_xy[0], goal_xy[1] - start_xy[1])
+        bad = reject(s, max(initial_g_m, g_exact))
+        if bad is not None:
+            return done(
+                found=False,
+                reason=f"起点不满足约束：{bad}",
+                snapped=snapped,
+                pruned=sum(prune_counts.values()),
+                prune_counts=prune_counts,
+            )
         return done(
             found=True,
             waypoints=[start_xy, goal_xy],
@@ -82,9 +113,22 @@ def plan(
             snapped=snapped,
         )
 
+    bad = reject(s, initial_g_m)
+    if bad is not None:
+        return done(
+            found=False,
+            reason=f"起点不满足约束：{bad}",
+            snapped=snapped,
+            pruned=sum(prune_counts.values()),
+            prune_counts=prune_counts,
+        )
+
     counter = itertools.count()
-    open_heap: list[tuple[float, float, int, int, int]] = [(0.0, 0.0, next(counter), s[0], s[1])]
-    g_score: dict[tuple[int, int], float] = {s: 0.0}
+    h0 = _heuristic(g[0] - s[0], g[1] - s[1], grid.res_m)
+    open_heap: list[tuple[float, float, int, int, int]] = [
+        (initial_g_m + h0, initial_g_m, next(counter), s[0], s[1])
+    ]
+    g_score: dict[tuple[int, int], float] = {s: initial_g_m}
     parent: dict[tuple[int, int], tuple[int, int]] = {}
     closed: set[tuple[int, int]] = set()
     expanded = 0
@@ -93,6 +137,8 @@ def plan(
         _, cost, _, iy, ix = heapq.heappop(open_heap)
         node = (iy, ix)
         if node in closed:
+            continue
+        if cost > g_score.get(node, math.inf):
             continue
         closed.add(node)
         expanded += 1
@@ -111,11 +157,17 @@ def plan(
                 length_m=polyline_length(pts),
                 nodes_expanded=expanded,
                 snapped=snapped,
+                pruned=sum(prune_counts.values()),
+                prune_counts=prune_counts,
             )
 
         if expanded >= max_expand:
             return done(
-                found=False, nodes_expanded=expanded, reason=f"超出扩展上限 {max_expand} 个节点，放弃"
+                found=False,
+                nodes_expanded=expanded,
+                pruned=sum(prune_counts.values()),
+                prune_counts=prune_counts,
+                reason=f"超出扩展上限 {max_expand} 个节点，放弃",
             )
 
         for dy, dx, step in NEIGHBORS:
@@ -131,14 +183,32 @@ def plan(
             nxt = (ny, nx)
             if nxt in closed:
                 continue
-            tentative = cost + step
-            if tentative < g_score.get(nxt, math.inf):
+            # g 用米。早期版本这里只加了 1 或 √2（格），启发却是米，
+            # 等价于把启发放大了 res_m 倍，不再保证最短路。基线已改回同一单位。
+            tentative = cost + step * grid.res_m
+            if tentative >= g_score.get(nxt, math.inf):
+                continue
+            if reject(nxt, tentative) is not None:
+                # 记下这次失败的到达代价，更长的路径不必再试；
+                # 更短的路径仍会因为 tentative 更小而重新检查。
                 g_score[nxt] = tentative
-                parent[nxt] = node
-                f = tentative + _heuristic(g[0] - ny, g[1] - nx, grid.res_m)
-                heapq.heappush(open_heap, (f, tentative, next(counter), ny, nx))
+                continue
+            g_score[nxt] = tentative
+            parent[nxt] = node
+            f = tentative + _heuristic(g[0] - ny, g[1] - nx, grid.res_m)
+            heapq.heappush(open_heap, (f, tentative, next(counter), ny, nx))
 
-    return done(found=False, nodes_expanded=expanded, reason="搜索空间耗尽，无可行路线")
+    reason = "搜索空间耗尽，无可行路线"
+    if prune_counts:
+        detail = ", ".join(f"{k}={v}" for k, v in sorted(prune_counts.items()))
+        reason = f"无可行路线（约束剪枝：{detail}）"
+    return done(
+        found=False,
+        nodes_expanded=expanded,
+        pruned=sum(prune_counts.values()),
+        prune_counts=prune_counts,
+        reason=reason,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -205,7 +275,9 @@ def main(argv: list[str] | None = None) -> int:
     print("-" * 78)
     print(f"找到路线 {n_found}/{total}")
     print("\n注意：S4-02（时限 90 s）与 S4-03（备降点全关）在本版本仍会返回路线——")
-    print("      基线不认识时间和备降，这正是后续版本要补的缺口，不是 bug。")
+    print("      基线不认识时间和备降，这正是带约束版本要补的缺口，不是 bug。")
+    print("对照：python -m planner.diversion")
+    print("      默认使用 scenarios/vehicles/example_not_real.yaml，示例参数，不是真实平台数据。")
     return 0
 
 

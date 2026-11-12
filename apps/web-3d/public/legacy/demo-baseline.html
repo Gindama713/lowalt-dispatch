@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>低空应急配送 · 调度任务台 v2（BEE 风格）</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#060607;color:#e8e6df;font-family:"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+  #bg{position:fixed;inset:0;z-index:0}
+  .app{position:relative;z-index:1;display:grid;grid-template-rows:88px 1fr 44px;height:100vh}
+  /* ---------- 顶栏 ---------- */
+  header{display:flex;align-items:center;gap:18px;padding:10px 26px 4px}
+  header .stripe{position:absolute;top:0;left:0;right:0;height:9px;background:#FFC400}
+  header .stripe i{position:absolute;top:0;width:26px;height:9px;background:#0a0a0b;transform:skewX(-32deg)}
+  h1{font-size:30px;margin:0;letter-spacing:1px}
+  h1 b{color:#FFC400}
+  .sub{color:#8f8c82;font-size:13px;margin-top:2px}
+  .sim-badge{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .pill{border:1px solid #3a3d42;background:rgba(16,16,19,.88);border-radius:999px;padding:8px 18px;font-size:13.5px;white-space:nowrap}
+  .pill .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF4747;margin-right:7px;animation:blink 1.6s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .pill em{font-style:normal;color:#FFC400;font-weight:700}
+  /* ---------- 主区三列 ---------- */
+  main{display:grid;grid-template-columns:348px 1fr 372px;gap:14px;padding:8px 16px 10px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;scrollbar-width:none}
+  .col::-webkit-scrollbar{display:none}
+  .panel{background:linear-gradient(160deg,rgba(26,26,30,.93),rgba(12,12,14,.93));border:1px solid #3a3d42;border-radius:34px;padding:16px 20px 18px}
+  .panel h3{margin:0 0 12px;font-size:15px;letter-spacing:2px;color:#FFC400;display:flex;align-items:center;gap:9px}
+  .panel h3::before{content:"";width:9px;height:9px;border-radius:50%;background:#FFC400;box-shadow:0 0 8px #FFC400}
+  .panel h3 small{color:#8f8c82;letter-spacing:0;font-size:11.5px;margin-left:auto;font-weight:500}
+  label{display:block;font-size:12px;color:#8f8c82;margin:9px 0 4px}
+  input,select{width:100%;background:#0d0d0f;border:1px solid #3a3d42;color:#e8e6df;border-radius:999px;padding:8px 15px;font-size:14px;outline:none;font-family:Consolas,Menlo,monospace}
+  input:focus,select:focus{border-color:#FFC400}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{width:100%;border:none;border-radius:999px;padding:11px 10px;font-size:15px;font-weight:800;letter-spacing:2px;background:#FFC400;color:#141414;cursor:pointer;margin-top:13px}
+  .btn:hover{background:#FFD84D}
+  .btn.ghost{background:transparent;border:1.5px solid #FFC400;color:#FFC400}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1.5px solid #3a3d42;background:#0d0d0f;color:#8f8c82;border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:Consolas,monospace}
+  .chip.on{border-color:#FF4747;color:#FF8f8f;background:rgba(255,71,71,.10)}
+  .chip.site.on{border-color:#FFC400;color:#FFC400;background:rgba(255,196,0,.10)}
+  .chip.layer.on{border-color:#9aa0a8;color:#e8e6df;background:rgba(154,160,168,.14)}
+  .hint{font-size:12px;color:#8f8c82;line-height:1.55;margin-top:9px}
+  .hint b{color:#FFD84D;font-weight:600}
+  .kv{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 2px;border-bottom:1px dashed rgba(154,160,168,.18)}
+  .kv span:first-child{color:#8f8c82}
+  .kv span:last-child{font-family:Consolas,monospace;font-weight:700}
+  .ok{color:#7ee2a0}.bad{color:#FF6b6b}.yel{color:#FFC400}
+  ul.limits{margin:8px 0 0;padding-left:17px;font-size:12.5px;color:#b9b5a9;line-height:1.65}
+  .ver{display:flex;align-items:center;gap:9px;border:1px solid #3a3d42;border-radius:999px;padding:7px 14px;margin-top:8px;cursor:pointer;font-size:13px}
+  .ver.on{border-color:#FFC400;background:rgba(255,196,0,.08)}
+  .ver b{font-family:Consolas,monospace;color:#FFC400}
+  .ver span{color:#8f8c82;font-size:12px;margin-left:auto}
+  /* ---------- 中央：椭圆地图（机盖窗） ---------- */
+  .center{display:flex;flex-direction:column;gap:14px;min-height:0}
+  .map-shell{position:relative;flex:1;min-height:0;border-radius:50%;overflow:hidden;border:3px solid #3a3d42;box-shadow:0 0 0 6px #141416,0 0 44px rgba(255,196,0,.10) inset;background:#0b0d0c}
+  #map{position:absolute;inset:0;width:100%;height:100%}
+  .map-tag{position:absolute;left:50%;bottom:5.5%;transform:translateX(-50%);background:rgba(10,10,11,.82);border:1px solid #3a3d42;border-radius:999px;padding:6px 18px;font-size:12.5px;color:#8f8c82;white-space:nowrap}
+  .map-tag b{color:#FFC400}
+  .layers{position:absolute;top:6.5%;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+  /* ---------- 备降余量：椭圆窗 ---------- */
+  .margin-shell{position:relative;height:196px;border-radius:50%;overflow:hidden;border:2px solid #3a3d42;background:rgba(13,13,15,.92)}
+  #margin{position:absolute;inset:0;width:100%;height:100%}
+  .margin-txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 52px;gap:5px}
+  .margin-txt .st{font-size:15px;font-weight:800;letter-spacing:2px}
+  .margin-txt .dt{font-size:12px;color:#8f8c82;line-height:1.55}
+  /* ---------- 日志胶囊 + 健康条 ---------- */
+  .log{height:96px;overflow:hidden}
+  .log .line{font-size:13px;line-height:1.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .log .line time{color:#FFC400;font-family:Consolas,monospace;margin-right:10px}
+  .log .line.dim{opacity:.55}
+  footer{display:flex;gap:9px;align-items:center;padding:0 16px 9px;overflow:hidden}
+  footer .pill{font-size:12.5px;padding:6px 14px}
+  footer .pill b{color:#e8e6df}
+  .app.off{display:none}
+  /* ================= 主页（兰博基尼语言：六边形 + 金属漆面） ================= */
+  #home{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;overflow:hidden;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(90deg, transparent 0 478px, rgba(0,0,0,.55) 478px 481px, rgba(255,255,255,.05) 481px 482px),
+      radial-gradient(1100px 480px at 50% -120px, rgba(255,196,0,.13), rgba(0,0,0,0) 60%),
+      linear-gradient(180deg,#1a1b1e 0%,#0c0c0e 55%,#060607 100%)}
+  #home.leaving{animation:homeOut .55s ease forwards}
+  @keyframes homeOut{to{opacity:0;transform:scale(1.045)}}
+  #home .lightbar{height:5px;background:linear-gradient(90deg,transparent,#FFC400 30%,#FFE9A8 50%,#FFC400 70%,transparent);box-shadow:0 0 26px rgba(255,196,0,.55)}
+  .home-top{display:flex;align-items:center;gap:14px;padding:20px 34px 0}
+  .hexlogo{width:44px;height:50px;background:linear-gradient(180deg,#FFE066,#FFC400 45%,#a87b00 60%,#FFB300);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-weight:900;color:#141414;font-size:19px;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+  .home-top .brand{font-size:17px;letter-spacing:3px;font-weight:700}
+  .home-top .brand span{color:#8f8c82;font-weight:500;letter-spacing:1px;font-size:12.5px;display:block}
+  .home-top .right{margin-left:auto;display:flex;gap:9px}
+  .hero{flex:1;display:grid;grid-template-columns:1.25fr .9fr;align-items:center;padding:0 60px;gap:20px;min-height:0}
+  .metal-title{font-size:74px;line-height:1.08;font-weight:900;font-style:italic;letter-spacing:2px;margin:0;
+    background:linear-gradient(180deg,#FFF3C4 0%,#FFC400 38%,#B57E00 56%,#FFD84D 74%,#8A5F00 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 rgba(0,0,0,.55))}
+  .hero .en{letter-spacing:9px;color:#9aa0a8;font-size:15px;margin:14px 0 10px;font-weight:600}
+  .hero .desc{color:#b9b5a9;font-size:15.5px;line-height:1.75;max-width:560px}
+  .hero .desc b{color:#FFD84D}
+  .hexrow{display:flex;gap:16px;margin-top:24px}
+  .hexspec{width:104px;height:116px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    background:linear-gradient(165deg,#33353a,#17181a 55%,#232427);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+  .hexspec::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 3px)}
+  .hexspec .n{font-family:Consolas,monospace;color:#FFC400;font-size:19px;font-weight:800}
+  .hexspec .t{font-size:12px;color:#c9c5ba;letter-spacing:1px}
+  .enter-btn{margin-top:30px;border:none;cursor:pointer;padding:17px 58px 17px 46px;font-size:19px;font-weight:900;letter-spacing:4px;color:#191919;position:relative;overflow:hidden;
+    clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%);
+    background:linear-gradient(180deg,#FFE98A 0%,#FFC400 42%,#C98F00 58%,#FFB300 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -3px 0 rgba(0,0,0,.35),0 14px 34px rgba(255,196,0,.28)}
+  .enter-btn::after{content:"";position:absolute;top:0;bottom:0;width:60px;left:-80px;transform:skewX(-24deg);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);animation:sheen 3.2s ease-in-out infinite}
+  @keyframes sheen{0%,55%{left:-80px}85%,100%{left:110%}}
+  .enter-btn:hover{filter:brightness(1.07)}
+  /* 六边形门户 */
+  .portal-wrap{display:flex;align-items:center;justify-content:center}
+  .portal{position:relative;width:400px;height:452px;cursor:pointer}
+  .portal .hex{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+  .portal .h1{width:400px;height:452px;background:linear-gradient(200deg,#3d3f45,#141518 50%,#2c2e33);animation:spinSlow 46s linear infinite}
+  .portal .h2{width:356px;height:402px;background:linear-gradient(180deg,#FFE066,#FFC400 45%,#9A7200 60%,#FFB300)}
+  .portal .h3{width:332px;height:375px;background:radial-gradient(circle at 50% 32%,#1d2126,#0a0b0d 70%)}
+  @keyframes spinSlow{to{transform:translate(-50%,-50%) rotate(360deg)}}
+  .portal .core{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center}
+  .portal .core .code{font-family:Consolas,monospace;color:#FFC400;font-size:27px;font-weight:800;letter-spacing:3px}
+  .portal .core .st{color:#7ee2a0;font-size:13px;letter-spacing:2px}
+  .portal .core .st i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#7ee2a0;margin-right:6px;animation:blink 1.6s infinite}
+  .portal .core .tip{color:#8f8c82;font-size:12.5px}
+  /* 无人机与展台地面 */
+  .car-zone{position:relative;padding:0 40px 8px}
+  .car-zone .floor{position:absolute;left:6%;right:6%;bottom:16px;height:56px;border-radius:50%;
+    background:radial-gradient(ellipse at center, rgba(255,196,0,.20), rgba(255,196,0,.05) 55%, transparent 75%);filter:blur(4px)}
+  .car-zone svg{position:relative;display:block;margin:0 auto;width:min(1060px,88%)}
+  .home-foot{display:flex;gap:9px;align-items:center;padding:0 34px 16px}
+  .home-foot .sp{margin-left:auto;color:#6f6c63;font-size:12px;letter-spacing:1px}
+  /* ================= 搜救态势（双视图） ================= */
+  .navbtn{border:1.5px solid #3a3d42;background:rgba(16,16,19,.88);color:#8f8c82;border-radius:999px;padding:8px 20px;font-size:14px;cursor:pointer;letter-spacing:1px}
+  .navbtn.on{border-color:#FFC400;color:#FFC400;background:rgba(255,196,0,.08);font-weight:700}
+  #view-sar{display:none;grid-template-rows:1fr 74px;padding:8px 16px 10px;gap:12px;min-height:0}
+  #view-sar.on{display:grid}
+  .sar-grid{display:grid;grid-template-columns:318px 1fr 400px;gap:14px;min-height:0}
+  .view3d-shell{position:relative;border-radius:50%;overflow:hidden;border:3px solid #3a3d42;box-shadow:0 0 0 6px #141416,0 0 44px rgba(255,196,0,.10) inset;background:#0b0d0c;min-height:0}
+  .view3d-shell canvas{position:absolute;inset:0}
+  .view-tag{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);background:rgba(10,10,11,.85);border:1px solid #3a3d42;border-radius:999px;padding:6px 18px;font-size:12.5px;color:#8f8c82;white-space:nowrap;z-index:3}
+  .view-tag b{color:#FFC400}
+  .view2d-shell{position:relative;height:308px;border-radius:50%;overflow:hidden;border:2px solid #3a3d42;background:#0b0d0c}
+  #sar2d{position:absolute;inset:0;width:100%;height:100%}
+  .timeline{display:flex;align-items:center;gap:16px;background:linear-gradient(160deg,rgba(26,26,30,.93),rgba(12,12,14,.93));border:1px solid #3a3d42;border-radius:999px;padding:10px 22px}
+  .playbtn{width:46px;height:46px;flex:none;border-radius:50%;border:2px solid #FFC400;background:rgba(255,196,0,.1);color:#FFC400;font-size:17px;cursor:pointer}
+  .timeline input[type=range]{flex:1;accent-color:#FFC400;height:5px}
+  .timeline .clock{font-family:Consolas,monospace;font-size:14px;white-space:nowrap}
+  .timeline .clock b{color:#FFC400}
+  .spd{border:1.5px solid #3a3d42;background:#0d0d0f;color:#8f8c82;border-radius:999px;padding:5px 12px;font-size:12.5px;cursor:pointer;font-family:Consolas,monospace}
+  .spd.on{border-color:#FFC400;color:#FFC400}
+  .bigstat{font-size:25px;font-weight:800;font-family:Consolas,monospace}
+  @media (max-height:920px){
+    .portal{transform:scale(.8)} .metal-title{font-size:56px}
+    .car-zone svg{width:min(880px,80%)} .hexspec{width:88px;height:99px}
+  }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<!-- ================= 主页 ================= -->
+<div id="home">
+  <div class="lightbar"></div>
+  <div class="home-top">
+    <div class="hexlogo">低</div>
+    <div class="brand">LOWALT DISPATCH<span>低空航线安全规划与动态避险智能体</span></div>
+    <div class="right">
+      <span class="pill">场景 <em>v0</em> · 草稿 / 仿真</span>
+      <span class="pill">契约 <em>schema 0.1.0</em></span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h2 class="metal-title">低空应急配送<br>调度任务台</h2>
+      <div class="en">EMERGENCY DELIVERY · ROUTE SAFETY · DIVERSION</div>
+      <p class="desc">为应急配送无人机规划<b>安全航线</b>：避开建筑与限制区，把<b>备降可达性</b>写进搜索期硬约束，而不是事后告警。当前为本地演示模式，数据经模拟适配层（接口形状对齐后端 13 条路由）。</p>
+      <div class="hexrow">
+        <div class="hexspec"><span class="n">13</span><span class="t">接口路由</span></div>
+        <div class="hexspec"><span class="n">20+4</span><span class="t">障碍 / 限制区</span></div>
+        <div class="hexspec"><span class="n">L1–L4</span><span class="t">备降点</span></div>
+        <div class="hexspec"><span class="n">A*</span><span class="t">几何基线</span></div>
+      </div>
+      <button class="enter-btn" id="enter-btn">进入任务台 ›</button>
+    </div>
+
+    <div class="portal-wrap">
+      <div class="portal" id="portal">
+        <div class="hex h1"></div><div class="hex h2"></div><div class="hex h3"></div>
+        <div class="core">
+          <svg width="120" height="120" viewBox="0 0 120 120" fill="none" stroke="#FFC400" stroke-width="3">
+            <circle cx="24" cy="24" r="13"/><circle cx="96" cy="24" r="13"/><circle cx="24" cy="96" r="13"/><circle cx="96" cy="96" r="13"/>
+            <path d="M34 34 L48 48 M86 34 L72 48 M34 86 L48 72 M86 86 L72 72"/>
+            <polygon points="60,44 74,52 74,68 60,76 46,68 46,52" fill="rgba(255,196,0,.14)"/>
+            <circle cx="60" cy="60" r="4" fill="#A8DCFF" stroke="none"/>
+          </svg>
+          <div class="code">BEE-01</div>
+          <div class="st"><i></i>系统就绪 · READY</div>
+          <div class="tip">点击门户或按钮进入调度任务台</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="car-zone">
+    <div class="floor"></div>
+    <svg viewBox="0 0 920 250" aria-label="金属黄应急配送无人机">
+      <defs>
+        <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FFE98A"/><stop offset=".34" stop-color="#FFC400"/>
+          <stop offset=".55" stop-color="#C98F00"/><stop offset=".78" stop-color="#FFB300"/><stop offset="1" stop-color="#7A5C00"/>
+        </linearGradient>
+        <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2C3E4A"/><stop offset="1" stop-color="#0B1116"/>
+        </linearGradient>
+      </defs>
+      <!-- 下探照灯光锥 -->
+      <polygon points="428,168 492,168 560,238 360,238" fill="rgba(255,196,0,0.07)"/>
+      <!-- 旋翼盘（远近两对） -->
+      <g fill="rgba(200,212,224,0.13)" stroke="rgba(200,212,224,0.30)">
+        <ellipse cx="188" cy="52" rx="128" ry="13"/>
+        <ellipse cx="732" cy="52" rx="128" ry="13"/>
+        <ellipse cx="330" cy="30" rx="82" ry="9"/>
+        <ellipse cx="590" cy="30" rx="82" ry="9"/>
+      </g>
+      <!-- 碳纤维机臂（棱角造型） -->
+      <g fill="#151517" stroke="rgba(154,160,168,.4)">
+        <polygon points="392,108 268,66 236,66 372,126"/>
+        <polygon points="528,108 652,66 684,66 548,126"/>
+        <polygon points="404,96 352,44 330,44 396,112"/>
+        <polygon points="516,96 568,44 590,44 524,112"/>
+      </g>
+      <!-- 电机座 -->
+      <g fill="#232428" stroke="rgba(154,160,168,.5)">
+        <rect x="172" y="52" width="32" height="13" rx="4"/><rect x="716" y="52" width="32" height="13" rx="4"/>
+        <rect x="316" y="30" width="28" height="11" rx="4"/><rect x="576" y="30" width="28" height="11" rx="4"/>
+      </g>
+      <!-- 机身：棱角楔形 + 金属漆面 -->
+      <polygon points="352,140 376,100 420,84 500,84 544,100 568,140 528,164 392,164" fill="url(#paint)" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>
+      <polygon points="404,92 516,92 538,112 382,112" fill="rgba(255,255,255,.22)"/>
+      <!-- 座舱玻璃 + 机头眼 -->
+      <polygon points="416,116 504,116 522,138 398,138" fill="url(#glass)"/>
+      <circle cx="460" cy="127" r="6" fill="#A8DCFF"/>
+      <!-- 机身六边形徽记 -->
+      <polygon points="460,142 470,147 470,157 460,162 450,157 450,147" fill="none" stroke="rgba(20,20,20,.65)" stroke-width="2.4"/>
+      <!-- 起落架 -->
+      <path d="M398 164 L382 202 M522 164 L538 202 M382 202 H538" stroke="#232428" stroke-width="5" fill="none"/>
+      <!-- 吊挂应急配送箱 -->
+      <path d="M446 164 V180 M474 164 V180" stroke="#3A3D42" stroke-width="3"/>
+      <g>
+        <polygon points="424,182 496,182 506,196 496,222 424,222 414,196" fill="#E8E6DF" stroke="rgba(0,0,0,.4)"/>
+        <rect x="452" y="190" width="16" height="24" fill="#FF4747"/>
+        <rect x="444" y="198" width="32" height="8" fill="#FF4747"/>
+      </g>
+      <!-- 状态灯 -->
+      <circle cx="368" cy="146" r="4" fill="#FF4747"/><circle cx="552" cy="146" r="4" fill="#7EE2A0"/>
+    </svg>
+  </div>
+
+  <div class="home-foot">
+    <span class="pill">SITL 仿真验证边界 · 无实机飞行</span>
+    <span class="pill">障碍几何 draft · 示例数据已标注</span>
+    <span class="sp">LOWALT-DISPATCH · FORK 64e4748 · 演示构建</span>
+  </div>
+</div>
+
+<div class="app off" id="console">
+  <header>
+    <div class="stripe"><i style="left:640px"></i><i style="left:700px"></i><i style="left:760px"></i></div>
+    <div>
+      <h1>低空应急配送 <b>· 调度任务台</b></h1>
+      <div class="sub">LOW-ALT DISPATCH — 航线安全规划与动态避险 · 场景 v0（草稿 / 仿真）</div>
+    </div>
+    <div class="sim-badge">
+      <button class="navbtn on" id="nav-ops">调度任务台</button>
+      <button class="navbtn" id="nav-sar">搜救态势 · 双视图</button>
+      <span class="pill"><span class="dot"></span>本地演示模式 · 数据经<b style="color:#FFC400">模拟适配层</b></span>
+      <span class="pill">契约 <em>schema 0.1.0</em></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 左列：任务 + 快照 -->
+    <div class="col">
+      <section class="panel">
+        <h3>新建任务 <small>POST /tasks</small></h3>
+        <label>导入示例</label>
+        <select id="f-sample">
+          <option value="s1">S1-01 · 文档示例（150,150 → 2650,2750）</option>
+          <option value="r1demo">演示 · 终点压 R01（测无解）</option>
+          <option value="custom">自定义</option>
+        </select>
+        <label>任务 ID</label>
+        <input id="f-taskid" value="T-20261109-001">
+        <div class="row2">
+          <div><label>起点 X / 东向 (m)</label><input id="f-ox" type="number" value="150"></div>
+          <div><label>起点 Y / 北向 (m)</label><input id="f-oy" type="number" value="150"></div>
+        </div>
+        <div class="row2">
+          <div><label>终点 X / 东向 (m)</label><input id="f-dx" type="number" value="2650"></div>
+          <div><label>终点 Y / 北向 (m)</label><input id="f-dy" type="number" value="2750"></div>
+        </div>
+        <div class="row2">
+          <div><label>载荷 (kg)</label><input id="f-payload" type="number" value="1" step="0.1"></div>
+          <div><label>机型</label><input id="f-vehicle" value="placeholder"></div>
+        </div>
+        <div class="row2">
+          <div><label>初始能量 (Wh)</label><input id="f-e0" type="number" value="100"></div>
+          <div><label>保留能量 (Wh)</label><input id="f-er" type="number" value="20"></div>
+        </div>
+        <p class="hint">坐标系固定 <b>ENU 局部米制</b>、高度基准 rel_takeoff。本版规划入口只接受 ENU（功能文档 0.1），WGS84 会被 422 拒绝，表单先不开放。</p>
+        <button class="btn" id="btn-task">创建任务</button>
+      </section>
+
+      <section class="panel">
+        <h3>风险快照 <small>from-scene</small></h3>
+        <label>当前已生效限制区（点名才算起飞时已知）</label>
+        <div class="chips" id="chips-zones"></div>
+        <label>占用的备降点</label>
+        <div class="chips" id="chips-sites"></div>
+        <button class="btn ghost" id="btn-snap" disabled>加载场景生成快照</button>
+        <p class="hint" id="snap-info">先创建任务，再生成快照。障碍物不进快照，规划时另从场景几何读取（接口文档 1.7）。</p>
+      </section>
+    </div>
+
+    <!-- 中列：椭圆地图 + 日志 -->
+    <div class="center">
+      <div class="map-shell">
+        <canvas id="map"></canvas>
+        <div class="layers chips" id="chips-layers"></div>
+        <div class="map-tag">场景 <b>v0</b> · 3000 × 3000 m · 障碍 <b>20</b> · 限制区 <b>R01–R04</b> · 备降点 <b>L1–L4</b> · 几何为草稿示例</div>
+      </div>
+      <section class="panel log" id="log"></section>
+    </div>
+
+    <!-- 右列：规划 + 版本 + 余量 -->
+    <div class="col">
+      <section class="panel">
+        <h3>航线规划 <small>POST /plan</small></h3>
+        <button class="btn" id="btn-plan" disabled>规划航线（几何基线 A*）</button>
+        <div id="plan-result">
+          <p class="hint">规划走默认入口 <b>planner.astar:plan_scenario</b>：只回答几何可达——不判时限、不算能量、不做备降剪枝（功能文档 2.3）。</p>
+        </div>
+        <div id="ver-list"></div>
+      </section>
+
+      <section class="panel">
+        <h3>备降余量剖面 <small>主视觉 · GET /margin</small></h3>
+        <div class="margin-shell">
+          <canvas id="margin"></canvas>
+          <div class="margin-txt" id="margin-txt">
+            <div class="st" style="color:#8f8c82">尚无路线</div>
+            <div class="dt">选中一条已规划路线后，这里读取它的备降余量剖面。</div>
+          </div>
+        </div>
+        <p class="hint">红线（功能文档 0.6）：status=unavailable 时<b>不画假曲线</b>、不补 0；哨兵 −1e6 不是能量缺口。</p>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================= 搜救态势 ================= -->
+  <section id="view-sar">
+    <div class="sar-grid">
+      <div class="col">
+        <section class="panel">
+          <h3>遥测 · VehicleState <small>样例轨迹流</small></h3>
+          <div class="kv"><span>飞行模式</span><span id="t-mode" class="yel">—</span></div>
+          <div class="kv"><span>高度 AGL</span><span id="t-alt">—</span></div>
+          <div class="kv"><span>地速</span><span id="t-spd">—</span></div>
+          <div class="kv"><span>航向</span><span id="t-hdg">—</span></div>
+          <div class="kv"><span>电池</span><span id="t-batt">—</span></div>
+          <div class="kv"><span>链路质量</span><span id="t-link">—</span></div>
+          <div class="kv"><span>纬度（锚点换算）</span><span id="t-lat">—</span></div>
+          <div class="kv"><span>经度（锚点换算）</span><span id="t-lon">—</span></div>
+          <p class="hint">数据源：<b>样例轨迹</b>——按 VehicleState 字段与 MAVLink 遥测节奏（2 Hz 位置流）构造的搜救飞行，格式真实、数值示例。SITL/真机就绪后把回放源换成 WebSocket 实时流即可，本页不改。ENU 原点锚点为<b>示例锚点（成都 104.0668°E, 30.5728°N）</b>，对应功能文档 0.1 待确认项，正式锚点待项目组拍板。</p>
+        </section>
+        <section class="panel">
+          <h3>搜救进度</h3>
+          <div class="kv"><span>已搜覆盖</span><span class="bigstat yel" id="cov-pct">0%</span></div>
+          <div class="kv"><span>搜索区</span><span>1200 × 1200 m</span></div>
+          <div class="kv"><span>扫描图样</span><span>往复式 · 间距 200 m</span></div>
+          <div class="kv"><span>传感器幅宽</span><span>120 m</span></div>
+          <div class="kv"><span>目标事件</span><span id="t-event">尚未发现</span></div>
+          <p class="hint">轨迹构成：起飞 → 爬升 60 m → 往复搜索 → <b>发现 SOS 信标</b> → 抵近下降 25 m 确认 → 返航降落。黄色为计划搜索区，实际轨迹带时间戳逐点回放。</p>
+        </section>
+      </div>
+
+      <div class="view3d-shell" id="view3d-shell">
+        <div class="view-tag" id="tag3d"><b>3D</b> · Three.js 实时渲染 · 拖动旋转 / 滚轮缩放 · 无人机沿轨迹飞行</div>
+      </div>
+
+      <div class="col">
+        <section class="panel">
+          <h3>2D 态势图 <small>同源数据</small></h3>
+          <div class="view2d-shell"><canvas id="sar2d"></canvas></div>
+          <p class="hint">俯视：搜索区（黄框）、往复计划线（虚线）、实际轨迹（黄实线）、已搜覆盖（黄色雾面）、限制区与备降点同任务台图层。双视图共用同一条遥测流，光标时刻严格一致。</p>
+        </section>
+        <section class="panel">
+          <h3>事件时间线</h3>
+          <div id="sar-events" style="font-size:13px;line-height:2"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <button class="playbtn" id="btn-play">▶</button>
+      <span class="clock" id="t-clock"><b>T+00:00</b> / 00:00</span>
+      <input type="range" id="scrub" min="0" max="1000" value="0">
+      <button class="spd on" data-s="1">1×</button>
+      <button class="spd" data-s="4">4×</button>
+      <button class="spd" data-s="16">16×</button>
+      <button class="spd" data-s="60">60×</button>
+    </div>
+  </section>
+
+  <footer id="health"></footer>
+</div>
+<script>
+'use strict';
+/* ============================================================
+   调度任务台 v2 —— 在原 BEE 风格（大黄蜂 / 圆·椭圆窗）上按
+   《关键接口文档》《功能树》构建。数据经 SimAPI 适配层：
+   方法与返回形状对齐 13 条 HTTP 接口；本地为内存模拟实现，
+   接真服务时把 SimAPI 换成 fetch(127.0.0.1:8000) 即可，UI 不动。
+   红线：余量 unavailable 不画假曲线；示例数据明确标注示例。
+   ============================================================ */
+const TAU = Math.PI * 2, rnd = Math.random;
+const rr = (a, b) => a + rnd() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const $ = id => document.getElementById(id);
+function mulberry32(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------------- 背景：碳纹 + 加深交叉线 + 赛车流线（沿用 v1） ---------------- */
+(function bg() {
+  const c = $('bg'), x = c.getContext('2d');
+  const W = c.width = 1920, H = c.height = 1080;
+  x.fillStyle = '#0a0a0b'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = 'rgba(255,255,255,0.045)'; x.lineWidth = 1;
+  for (let i = -H; i < W; i += 14) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+  x.strokeStyle = 'rgba(0,0,0,0.55)'; x.lineWidth = 3;
+  for (let i = -H + 7; i < W; i += 14) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+  for (let i = 7; i < W + H; i += 14) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i - H, H); x.stroke(); }
+  x.strokeStyle = 'rgba(0,0,0,0.33)'; x.lineWidth = 2;
+  for (let i = -H + 120; i < W; i += 240) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+  for (let i = 120; i < W + H; i += 240) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i - H, H); x.stroke(); }
+  x.strokeStyle = 'rgba(255,196,0,0.06)'; x.lineWidth = 15; x.lineCap = 'round';
+  x.beginPath(); x.moveTo(-40, 1030); x.bezierCurveTo(520, 950, 1250, 1105, 1960, 985); x.stroke();
+  x.lineWidth = 6; x.beginPath(); x.moveTo(-40, 168); x.bezierCurveTo(620, 250, 1300, 80, 1960, 210); x.stroke();
+  const vg = x.createRadialGradient(960, 540, 460, 960, 540, 1260);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+  x.fillStyle = vg; x.fillRect(0, 0, W, H);
+})();
+
+/* ---------------- 场景数据（草稿示例几何；R01 为 fork 文档坐标） ---------------- */
+const SCENE = (() => {
+  const rand = mulberry32(20261109);
+  const obstacles = [];
+  while (obstacles.length < 20) {
+    const ox = 120 + rand() * 2600, oy = 120 + rand() * 2600, w = 90 + rand() * 170, h = 90 + rand() * 170;
+    if (Math.hypot(ox - 150, oy - 150) < 260 || Math.hypot(ox - 2650, oy - 2750) < 260) continue;
+    obstacles.push([[ox, oy], [ox + w, oy], [ox + w, oy + h], [ox, oy + h]]);
+  }
+  return {
+    scene_id: 'v0', is_simulated: true, geometry_status: 'draft',
+    obstacles,
+    zones: [
+      { id: 'R01', rect: [1000, 1200, 1400, 1700], src: 'fork 文档坐标' },
+      { id: 'R02', rect: [2050, 350, 2500, 900], src: '示例' },
+      { id: 'R03', rect: [450, 2050, 950, 2520], src: '示例' },
+      { id: 'R04', rect: [2250, 2250, 2760, 2760], src: '示例' }
+    ],
+    sites: [
+      { id: 'L1', x: 250, y: 2750, r: 60 }, { id: 'L2', x: 2750, y: 250, r: 60 },
+      { id: 'L3', x: 1450, y: 250, r: 60 }, { id: 'L4', x: 2750, y: 1450, r: 60 }
+    ]
+  };
+})();
+
+/* ---------------- A* 几何基线（对齐 planner.astar 语义：8 邻域 / 米制 g / octile） ---------------- */
+function astar(ox, oy, dx, dy, activeZoneIds) {
+  const RES = 20, N = 150, t0 = performance.now();
+  const blocked = new Uint8Array(N * N);
+  const inPoly = (px, py, poly) => { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside; } return inside; };
+  const zonePolys = SCENE.zones.filter(z => activeZoneIds.includes(z.id)).map(z => { const [a, b, c2, d] = z.rect; return [[a, b], [c2, b], [c2, d], [a, d]]; });
+  for (let gy = 0; gy < N; gy++) for (let gx = 0; gx < N; gx++) {
+    const px = gx * RES + RES / 2, py = gy * RES + RES / 2;
+    if (SCENE.obstacles.some(p => inPoly(px, py, p)) || zonePolys.some(p => inPoly(px, py, p))) blocked[gy * N + gx] = 1;
+  }
+  // 净空膨胀 20m（fork DEFAULT_CLEARANCE_M）= 1 格
+  const src = Uint8Array.from(blocked);
+  for (let gy = 0; gy < N; gy++) for (let gx = 0; gx < N; gx++) if (src[gy * N + gx])
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const nx = gx + a, ny = gy + b; if (nx >= 0 && ny >= 0 && nx < N && ny < N) blocked[ny * N + nx] = 1; }
+  const cell = (x, y) => [clamp(Math.floor(x / RES), 0, N - 1), clamp(Math.floor(y / RES), 0, N - 1)];
+  const snap = (x, y) => {
+    let [cx, cy] = cell(x, y);
+    if (!blocked[cy * N + cx]) return [cx, cy];
+    for (let r = 1; r <= 4; r++) for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
+      const nx = cx + a, ny = cy + b;
+      if (nx >= 0 && ny >= 0 && nx < N && ny < N && !blocked[ny * N + nx]) return [nx, ny];
+    }
+    return null;
+  };
+  const S = snap(ox, oy), G = snap(dx, dy);
+  if (!S || !G) return { found: false, reason: !G ? '终点位于障碍/已生效限制区内或其净空内，无解' : '起点位于障碍/已生效限制区内或其净空内，无解', waypoints: [], length_m: null, nodes_expanded: 0, elapsed_ms: performance.now() - t0 };
+  const gScore = new Float64Array(N * N).fill(Infinity), came = new Int32Array(N * N).fill(-1), closed = new Uint8Array(N * N);
+  const h = (x, y) => { const ax = Math.abs(x - G[0]), ay = Math.abs(y - G[1]); return (ax + ay + (Math.SQRT2 - 2) * Math.min(ax, ay)) * RES; };
+  const open = [[h(S[0], S[1]), S[0], S[1]]]; gScore[S[1] * N + S[0]] = 0;
+  let expanded = 0, foundCell = null;
+  while (open.length) {
+    let bi = 0; for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+    const [, cx, cy] = open.splice(bi, 1)[0], ci = cy * N + cx;
+    if (closed[ci]) continue; closed[ci] = 1; expanded++;
+    if (cx === G[0] && cy === G[1]) { foundCell = [cx, cy]; break; }
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      if (!a && !b) continue;
+      const nx = cx + a, ny = cy + b;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= N || blocked[ny * N + nx]) continue;
+      if (a && b && (blocked[cy * N + nx] || blocked[ny * N + cx])) continue;
+      const ng = gScore[ci] + (a && b ? Math.SQRT2 : 1) * RES, ni = ny * N + nx;
+      if (ng < gScore[ni]) { gScore[ni] = ng; came[ni] = ci; open.push([ng + h(nx, ny), nx, ny]); }
+    }
+  }
+  if (!foundCell) return { found: false, reason: '栅格上不存在可达路径（障碍/限制区封堵）', waypoints: [], length_m: null, nodes_expanded: expanded, elapsed_ms: performance.now() - t0 };
+  const cells = []; let cur = foundCell[1] * N + foundCell[0];
+  while (cur !== -1) { cells.push([cur % N, Math.floor(cur / N)]); cur = came[cur]; }
+  cells.reverse();
+  // 折线简化：去掉共线中间点，端点换回任务坐标
+  const pts = cells.map(([x, y]) => [x * RES + RES / 2, y * RES + RES / 2]);
+  const simp = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [ax, ay] = simp[simp.length - 1], [bx, by] = pts[i], [cx2, cy2] = pts[i + 1];
+    if (Math.abs((bx - ax) * (cy2 - ay) - (by - ay) * (cx2 - ax)) > 0.01) simp.push(pts[i]);
+  }
+  simp.push(pts[pts.length - 1]); simp[0] = [ox, oy]; simp[simp.length - 1] = [dx, dy];
+  let len = 0; for (let i = 1; i < simp.length; i++) len += Math.hypot(simp[i][0] - simp[i - 1][0], simp[i][1] - simp[i - 1][1]);
+  return { found: true, reason: null, waypoints: simp, length_m: Math.round(len), nodes_expanded: expanded, elapsed_ms: Math.round((performance.now() - t0) * 10) / 10 };
+}
+
+/* ---------------- SimAPI：形状对齐接口文档的本地模拟适配层 ---------------- */
+const SimAPI = {
+  tasks: new Map(), snaps: new Map(), routes: new Map(), snapSeq: new Map(),
+  health() {
+    return { status: 'ok', schema_version: '0.1.0', service: 'lowalt-dispatch-api', git_commit: '64e4748', storage_backend: 'sqlite', storage_note: '本地演示：内存模拟（形状同 SQLite 模式）', planner_entry: 'planner.astar:plan_scenario', postgres: { configured: false, connected: false }, redis: { configured: false, connected: false }, agent: { status: 'not_implemented', entry_configured: false, detail: 'M3 未接入。AGENT_ENTRY 未配置。' } };
+  },
+  createTask(t) {
+    if (this.tasks.has(t.task_id)) return { code: 409, body: { detail: `任务 ${t.task_id} 已存在` } };
+    this.tasks.set(t.task_id, t); this.routes.set(t.task_id, []);
+    return { code: 201, body: t };
+  },
+  getScene() { return { code: 200, body: { scene_id: 'v0', is_simulated: true, geometry_status: 'draft', counts: { obstacles: 20, restriction_zones: 4, landing_sites: 4 } } }; },
+  bindSnapshot(taskId, { active_zone_ids = [], occupied_site_ids = [] }) {
+    if (!this.tasks.has(taskId)) return { code: 404, body: { detail: `没有任务 ${taskId}` } };
+    for (const z of active_zone_ids) if (!SCENE.zones.some(v => v.id === z)) return { code: 422, body: { detail: `未知限制区 ${z}` } };
+    for (const s of occupied_site_ids) if (!SCENE.sites.some(v => v.id === s)) return { code: 422, body: { detail: `未知备降点 ${s}` } };
+    const n = (this.snapSeq.get(taskId) || 0) + 1; this.snapSeq.set(taskId, n);
+    const snap = { snapshot_id: `${taskId}-snap-${n}`, task_id: taskId, active_zone_ids, occupied_site_ids, captured_at: new Date().toISOString() };
+    this.snaps.set(taskId, snap);
+    return { code: 201, body: { snapshot: snap, scene_id: 'v0', is_simulated: true, note: `草稿场景 v0 绑定；生效区：${active_zone_ids.join('、') || '无'}；占用点：${occupied_site_ids.join('、') || '无'}。障碍不在快照内。` } };
+  },
+  plan(taskId) {
+    const t = this.tasks.get(taskId);
+    if (!t) return { code: 404, body: { detail: `没有任务 ${taskId}` } };
+    const snap = this.snaps.get(taskId);
+    if (!snap) return { code: 400, body: { detail: '任务还没有快照。先加载场景或提交 RiskSnapshot，再规划。' } };
+    const out = astar(t.origin.x_m, t.origin.y_m, t.destination.x_m, t.destination.y_m, snap.active_zone_ids);
+    const list = this.routes.get(taskId), ver = 'v' + (list.length + 1);
+    const limitations = ['仅几何可达：不判时限、不算能量、不做备降剪枝（基线 A*）', 'RoutePlan 不可用：默认入口不构造 energy_budget_wh', 'algorithm 字段仅备注，不会切换规划引擎'];
+    if (!snap.active_zone_ids.length) limitations.push('未点名任何限制区：限制区未并入占用栅格');
+    const rec = {
+      task_id: taskId, route_id: ver, plan_version: ver, snapshot_id: snap.snapshot_id,
+      algorithm: 'astar_static', planner_entry: 'planner.astar:plan_scenario',
+      found: out.found, reason: out.reason, length_m: out.length_m, elapsed_ms: out.elapsed_ms,
+      nodes_expanded: out.nodes_expanded, waypoints: out.waypoints,
+      route: null, route_plan_status: 'unavailable', margin_status: 'unavailable',
+      margin_detail: '未实现：默认规划入口未提供备降余量剖面。', limitations, is_simulated: true
+    };
+    list.push(rec);
+    return { code: 200, body: { route: rec, agent: { status: 'not_implemented', detail: 'M3 未接入：规划后 hook 已调用，返回值被丢弃，不改写路线。', entry: null, applied: false } } };
+  },
+  getMargin(taskId, routeId) {
+    const rec = (this.routes.get(taskId) || []).find(r => r.route_id === routeId);
+    if (!rec) return { code: 404, body: { detail: '路线不存在' } };
+    return { code: 200, body: { task_id: taskId, route_id: routeId, status: rec.margin_status, detail: rec.margin_detail, profile: null, min_margin_wh: null, negative_sample_count: null, is_feasible: null } };
+  }
+};
+</script>
+<script>
+'use strict';
+/* ---------------- UI 状态与日志 ---------------- */
+const UI = { task: null, snap: null, routes: [], selRoute: null, layers: { obstacles: true, zones: true, sites: true, route: true } };
+const logEl = $('log');
+function log(msg) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  const div = document.createElement('div'); div.className = 'line';
+  div.innerHTML = `<time>${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}</time>`;
+  div.append(document.createTextNode(msg));
+  [...logEl.children].forEach(ch => ch.classList.add('dim'));
+  logEl.prepend(div);
+  while (logEl.children.length > 3) logEl.lastChild.remove();
+}
+
+/* ---------------- 地图（椭圆机盖窗内） ---------------- */
+const mapC = $('map'), mx = mapC.getContext('2d');
+let MW = 0, MH = 0, dashOff = 0;
+function mapScale() { const s = Math.min(MW, MH) / 3260; return { s, ox: (MW - 3000 * s) / 2, oy: (MH - 3000 * s) / 2 }; }
+const X = v => mapScale().ox + v * mapScale().s;
+const Y = v => mapScale().oy + (3000 - v) * mapScale().s;
+function drawMap() {
+  if (!MW) return;
+  const { s } = mapScale();
+  mx.clearRect(0, 0, MW, MH);
+  mx.fillStyle = '#0b0d0c'; mx.fillRect(0, 0, MW, MH);
+  // 网格点
+  mx.fillStyle = 'rgba(232,230,223,0.08)';
+  for (let gx = 0; gx <= 3000; gx += 250) for (let gy = 0; gy <= 3000; gy += 250) { mx.beginPath(); mx.arc(X(gx), Y(gy), 1.3, 0, TAU); mx.fill(); }
+  // 障碍（草稿）
+  if (UI.layers.obstacles) for (const p of SCENE.obstacles) {
+    mx.beginPath(); p.forEach(([px, py], i) => i ? mx.lineTo(X(px), Y(py)) : mx.moveTo(X(px), Y(py))); mx.closePath();
+    mx.fillStyle = 'rgba(120,124,132,0.30)'; mx.fill(); mx.strokeStyle = 'rgba(154,160,168,0.55)'; mx.lineWidth = 1; mx.stroke();
+  }
+  // 限制区
+  if (UI.layers.zones) for (const z of SCENE.zones) {
+    const [a, b, c2, d] = z.rect, active = UI.snap && UI.snap.active_zone_ids.includes(z.id);
+    mx.fillStyle = active ? 'rgba(255,71,71,0.30)' : 'rgba(255,71,71,0.10)';
+    mx.fillRect(X(a), Y(d), (c2 - a) * s, (d - b) * s);
+    mx.strokeStyle = active ? '#FF4747' : 'rgba(255,71,71,0.55)'; mx.lineWidth = active ? 2.2 : 1.2;
+    mx.setLineDash(active ? [] : [7, 6]); mx.strokeRect(X(a), Y(d), (c2 - a) * s, (d - b) * s); mx.setLineDash([]);
+    mx.fillStyle = active ? '#FF6b6b' : 'rgba(255,107,107,0.75)';
+    mx.font = '700 15px Consolas,monospace'; mx.textAlign = 'center';
+    mx.fillText(z.id, X((a + c2) / 2), Y((b + d) / 2) + 5);
+  }
+  // 备降点（圆形降落盘）
+  if (UI.layers.sites) for (const st of SCENE.sites) {
+    const occ = UI.snap && UI.snap.occupied_site_ids.includes(st.id);
+    mx.beginPath(); mx.arc(X(st.x), Y(st.y), st.r * s, 0, TAU);
+    mx.strokeStyle = occ ? 'rgba(154,160,168,0.5)' : '#FFC400'; mx.lineWidth = 2; mx.stroke();
+    mx.beginPath(); mx.arc(X(st.x), Y(st.y), 3.5, 0, TAU); mx.fillStyle = occ ? '#666' : '#FFC400'; mx.fill();
+    mx.fillStyle = occ ? '#777' : '#FFD84D'; mx.font = '700 14px Consolas,monospace'; mx.textAlign = 'center';
+    mx.fillText(occ ? st.id + '·占用' : st.id, X(st.x), Y(st.y) - st.r * s - 8);
+  }
+  // 路线
+  const rec = UI.selRoute;
+  if (UI.layers.route && rec && rec.found && rec.waypoints.length > 1) {
+    mx.beginPath();
+    rec.waypoints.forEach(([px, py], i) => i ? mx.lineTo(X(px), Y(py)) : mx.moveTo(X(px), Y(py)));
+    mx.strokeStyle = 'rgba(255,196,0,0.28)'; mx.lineWidth = 7; mx.lineCap = 'round'; mx.stroke();
+    mx.setLineDash([13, 9]); mx.lineDashOffset = -dashOff;
+    mx.strokeStyle = '#FFC400'; mx.lineWidth = 2.6; mx.stroke(); mx.setLineDash([]);
+    mx.fillStyle = '#FFD84D';
+    for (const [px, py] of rec.waypoints) { mx.beginPath(); mx.arc(X(px), Y(py), 3, 0, TAU); mx.fill(); }
+  }
+  // 起终点
+  if (UI.task) {
+    const o = UI.task.origin, d2 = UI.task.destination;
+    mx.beginPath(); mx.arc(X(o.x_m), Y(o.y_m), 8, 0, TAU); mx.fillStyle = '#A8DCFF'; mx.fill();
+    mx.font = '700 13px Consolas,monospace'; mx.textAlign = 'center'; mx.fillText('起飞点', X(o.x_m), Y(o.y_m) - 15);
+    mx.beginPath(); mx.arc(X(d2.x_m), Y(d2.y_m), 8 + Math.sin(performance.now() / 300) * 1.6, 0, TAU); mx.fillStyle = '#FF4747'; mx.fill();
+    mx.fillText('配送点', X(d2.x_m), Y(d2.y_m) - 15);
+  }
+}
+function fitMap() {
+  const r = mapC.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  mapC.width = MW = r.width * dpr; mapC.height = MH = r.height * dpr;
+}
+new ResizeObserver(() => { fitMap(); drawMap(); }).observe(mapC.parentElement);
+(function anim() { dashOff += 0.55; drawMap(); requestAnimationFrame(anim); })();
+
+/* ---------------- 余量椭圆窗 ---------------- */
+const mgC = $('margin'), mgx = mgC.getContext('2d');
+function drawMarginAxes() {
+  const r = mgC.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  mgC.width = r.width * dpr; mgC.height = r.height * dpr;
+  const w = mgC.width, h = mgC.height;
+  mgx.clearRect(0, 0, w, h);
+  mgx.strokeStyle = 'rgba(154,160,168,0.25)'; mgx.lineWidth = 1; mgx.setLineDash([5, 6]);
+  mgx.beginPath(); mgx.moveTo(w * 0.16, h * 0.52); mgx.lineTo(w * 0.86, h * 0.52); mgx.stroke(); mgx.setLineDash([]);
+  mgx.fillStyle = 'rgba(143,140,130,0.8)'; mgx.font = `${11 * dpr}px Consolas,monospace`; mgx.textAlign = 'center';
+  mgx.fillText('余量 0 Wh — 无剖面数据', w / 2, h * 0.52 - 8 * dpr);
+}
+function showMargin(routeId) {
+  const res = SimAPI.getMargin(UI.task.task_id, routeId), b = res.body, el = $('margin-txt');
+  drawMarginAxes();
+  if (b.status === 'available' && b.profile) {
+    el.innerHTML = `<div class="st" style="color:#7ee2a0">available</div><div class="dt">最小余量 ${b.min_margin_wh} Wh · 负余量采样 ${b.negative_sample_count} · 可行 ${b.is_feasible}</div>`;
+  } else {
+    el.innerHTML = `<div class="st" style="color:#FFC400">unavailable · 未提供剖面</div><div class="dt">${b.detail}默认基线入口不产 DiversionMarginProfile，profile 与派生数字均为 null —— 不画假曲线。</div>`;
+  }
+}
+
+/* ---------------- 芯片与图层 ---------------- */
+const sel = { zones: new Set(), sites: new Set() };
+function buildChips() {
+  const zc = $('chips-zones'); zc.innerHTML = '';
+  for (const z of SCENE.zones) {
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = z.id;
+    b.title = z.src; b.onclick = () => { sel.zones.has(z.id) ? sel.zones.delete(z.id) : sel.zones.add(z.id); b.classList.toggle('on'); };
+    zc.append(b);
+  }
+  const sc = $('chips-sites'); sc.innerHTML = '';
+  for (const st of SCENE.sites) {
+    const b = document.createElement('button'); b.className = 'chip site'; b.textContent = st.id;
+    b.onclick = () => { sel.sites.has(st.id) ? sel.sites.delete(st.id) : sel.sites.add(st.id); b.classList.toggle('on'); };
+    sc.append(b);
+  }
+  const lc = $('chips-layers'); lc.innerHTML = '';
+  for (const [key, label] of [['obstacles', '障碍'], ['zones', '限制区'], ['sites', '备降点'], ['route', '航线']]) {
+    const b = document.createElement('button'); b.className = 'chip layer on'; b.textContent = label;
+    b.onclick = () => { UI.layers[key] = !UI.layers[key]; b.classList.toggle('on', UI.layers[key]); };
+    lc.append(b);
+  }
+}
+buildChips();
+
+/* ---------------- 操作流（对齐接口文档联调顺序） ---------------- */
+const num = id => parseFloat($(id).value);
+$('f-sample').onchange = e => {
+  if (e.target.value === 's1') { $('f-ox').value = 150; $('f-oy').value = 150; $('f-dx').value = 2650; $('f-dy').value = 2750; }
+  if (e.target.value === 'r1demo') { $('f-ox').value = 150; $('f-oy').value = 150; $('f-dx').value = 1200; $('f-dy').value = 1450; if (!sel.zones.has('R01')) document.querySelectorAll('#chips-zones .chip')[0].click(); }
+};
+$('btn-task').onclick = () => {
+  const t = {
+    task_id: $('f-taskid').value.trim(),
+    origin: { frame: 'enu_m', x_m: num('f-ox'), y_m: num('f-oy'), alt_m: 0, alt_ref: 'rel_takeoff' },
+    destination: { frame: 'enu_m', x_m: num('f-dx'), y_m: num('f-dy'), alt_m: 30, alt_ref: 'rel_takeoff' },
+    payload_kg: num('f-payload'), vehicle_type: $('f-vehicle').value.trim(),
+    initial_energy_wh: num('f-e0'), reserve_energy_wh: num('f-er'),
+    provenance: { source: 'demo', version: '0', captured_at: new Date().toISOString(), is_simulated: true }
+  };
+  if (!t.task_id) { log('创建失败：task_id 不能为空（422）'); return; }
+  const res = SimAPI.createTask(t);
+  if (res.code === 201) {
+    UI.task = t; UI.snap = null; UI.routes = []; UI.selRoute = null;
+    $('btn-snap').disabled = false; $('btn-plan').disabled = true;
+    $('ver-list').innerHTML = ''; $('plan-result').innerHTML = '<p class="hint">任务已创建。下一步：生成风险快照，再规划。</p>';
+    $('snap-info').textContent = '任务就绪。点名已生效限制区与占用备降点后生成快照。';
+    log(`POST /tasks → 201 · 任务 ${t.task_id} 已创建（仿真）`);
+  } else log(`POST /tasks → ${res.code} · ${res.body.detail}`);
+};
+$('btn-snap').onclick = () => {
+  const res = SimAPI.bindSnapshot(UI.task.task_id, { active_zone_ids: [...sel.zones], occupied_site_ids: [...sel.sites] });
+  if (res.code === 201) {
+    UI.snap = res.body.snapshot;
+    $('btn-plan').disabled = false;
+    $('snap-info').innerHTML = `快照 <b>${res.body.snapshot.snapshot_id}</b> 已生成。<br>${res.body.note}`;
+    log(`POST /tasks/${UI.task.task_id}/snapshots/from-scene → 201 · ${res.body.snapshot.snapshot_id}`);
+  } else log(`生成快照 → ${res.code} · ${res.body.detail}`);
+};
+$('btn-plan').onclick = () => {
+  const res = SimAPI.plan(UI.task.task_id);
+  if (res.code !== 200) { log(`POST /plan → ${res.code} · ${res.body.detail}`); return; }
+  const r = res.body.route; UI.routes = SimAPI.routes.get(UI.task.task_id); UI.selRoute = r;
+  $('plan-result').innerHTML = `
+    <div class="kv"><span>结果</span><span class="${r.found ? 'ok' : 'bad'}">${r.found ? '找到路线 found=true' : '无解 found=false'}</span></div>
+    ${r.found ? `<div class="kv"><span>航程 length_m</span><span>${r.length_m} m</span></div>
+    <div class="kv"><span>航点 waypoints</span><span>${r.waypoints.length} 个</span></div>` : `<div class="kv"><span>原因 reason</span><span class="bad" style="font-family:inherit;font-size:12.5px">${r.reason}</span></div>`}
+    <div class="kv"><span>搜索耗时 elapsed_ms</span><span>${r.elapsed_ms} ms</span></div>
+    <div class="kv"><span>扩展节点 nodes</span><span>${r.nodes_expanded}</span></div>
+    <div class="kv"><span>算法 / 入口</span><span>${r.algorithm}</span></div>
+    <div class="kv"><span>RoutePlan</span><span class="yel">${r.route_plan_status}（route=null）</span></div>
+    <div class="kv"><span>Agent 回执</span><span>${res.body.agent.status} · applied=false</span></div>
+    <ul class="limits">${r.limitations.map(l => `<li>${l}</li>`).join('')}</ul>`;
+  const vl = $('ver-list'); vl.innerHTML = '<label style="margin-top:13px">方案版本（GET /routes）</label>';
+  for (const rec of UI.routes) {
+    const d = document.createElement('div');
+    d.className = 'ver' + (rec === UI.selRoute ? ' on' : '');
+    d.innerHTML = `<b>${rec.route_id}</b> ${rec.found ? rec.length_m + ' m' : '无解'} <span>${rec.snapshot_id}</span>`;
+    d.onclick = () => { UI.selRoute = rec; [...vl.querySelectorAll('.ver')].forEach(v => v.classList.remove('on')); d.classList.add('on'); showMargin(rec.route_id); };
+    vl.append(d);
+  }
+  showMargin(r.route_id);
+  log(`POST /tasks/${UI.task.task_id}/plan → 200 · ${r.route_id} ${r.found ? '航程 ' + r.length_m + 'm' : '无解：' + r.reason} · agent=${res.body.agent.status}`);
+};
+
+/* ---------------- 健康条（GET /health） ---------------- */
+(function health() {
+  const h = SimAPI.health();
+  $('health').innerHTML = [
+    `<span class="pill">服务 <b class="ok">${h.status}</b>（本地模拟）</span>`,
+    `<span class="pill">schema <b>${h.schema_version}</b></span>`,
+    `<span class="pill">commit <b>${h.git_commit}</b></span>`,
+    `<span class="pill">存储 <b>${h.storage_backend}</b></span>`,
+    `<span class="pill">规划入口 <b>${h.planner_entry}</b></span>`,
+    `<span class="pill">PostgreSQL <b>未配置 · 未连接</b></span>`,
+    `<span class="pill">Redis <b>未配置 · 未连接</b></span>`,
+    `<span class="pill">M3 Agent <b class="yel">${h.agent.status}</b></span>`
+  ].join('');
+  log('GET /health → ok · lowalt-dispatch-api（本地模拟适配层）');
+  log('GET /scenes/v0 → 200 · 障碍 20 / 限制区 4 / 备降点 4（草稿·仿真）');
+})();
+fitMap(); drawMarginAxes();
+
+/* ================= 搜救态势：样例遥测轨迹（VehicleState 形状，2Hz） ================= */
+const SAR = (() => {
+  const HOME = [300, 300], AREA = [900, 900, 2100, 2100], TARGET = [1680, 1540];
+  // 计划航点：起飞爬升 → 往复搜索（行距200）→ 发现点 → 返航
+  const rows = [];
+  for (let i = 0; i < 6; i++) { const y = 1000 + i * 200; if (i % 2 === 0) rows.push([950, y], [2050, y]); else rows.push([2050, y], [950, y]); }
+  const planPts = [[300, 300], [700, 700], ...rows.slice(0, 9), TARGET, TARGET, [900, 800], [300, 300]];
+  const FOUND_AFTER = 8; // 第9个搜索航点后发现目标（rows 索引语义见下）
+  // 沿航点以巡航速度采样，航点间线性、转角自然由采样密度呈现
+  const CRUISE = 12, SAMPLE_DT = 0.5;
+  const samples = [];
+  let t = 0, batt = 100;
+  const altAt = (phase, f) => phase === 'climb' ? 60 * f : phase === 'descend' ? 60 - 35 * f : phase === 'land' ? 25 * (1 - f) : phase === 'hover' ? 25 : 60;
+  function leg(a, b, phase, altFrom = 60, altTo = 60) {
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]), dur = Math.max(d / CRUISE, 0.001), n = Math.max(1, Math.round(dur / SAMPLE_DT));
+    for (let i = 0; i < n; i++) {
+      const f = i / n;
+      const alt = phase === 'cruise' ? altFrom + (altTo - altFrom) * clamp(f * 2.5, 0, 1) : altAt(phase, f);
+      samples.push({ t, x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, phase, alt });
+      t += SAMPLE_DT;
+    }
+  }
+  // 起飞爬升（原地）
+  for (let i = 0; i < 16; i++) { samples.push({ t, x: HOME[0], y: HOME[1], phase: 'climb', alt: 60 * (i / 16) }); t += SAMPLE_DT; }
+  let prev = HOME;
+  const searchPts = [[700, 700], ...rows];
+  let foundIdx = -1;
+  for (let i = 0; i < searchPts.length; i++) {
+    leg(prev, searchPts[i], 'cruise'); prev = searchPts[i];
+    if (i === FOUND_AFTER + 1) { foundIdx = samples.length; break; }
+  }
+  leg(prev, TARGET, 'cruise');
+  // 下降确认 + 悬停
+  const dStart = samples.length;
+  for (let i = 0; i < 24; i++) { samples.push({ t, x: TARGET[0], y: TARGET[1], phase: 'descend', alt: 60 - 35 * (i / 24) }); t += SAMPLE_DT; }
+  for (let i = 0; i < 40; i++) { samples.push({ t, x: TARGET[0], y: TARGET[1], phase: 'hover', alt: 25 }); t += SAMPLE_DT; }
+  leg(TARGET, [900, 800], 'cruise', 25, 60); leg([900, 800], HOME, 'cruise', 60, 25);
+  const lStart = samples.length;
+  for (let i = 0; i < 24; i++) { samples.push({ t, x: HOME[0], y: HOME[1], phase: 'land', alt: 25 * (1 - i / 24) }); t += SAMPLE_DT; }
+  // 派生量：速度/航向/电量/链路
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i], p = samples[Math.max(0, i - 1)], n = samples[Math.min(samples.length - 1, i + 1)];
+    const vx = (n.x - p.x) / ((n.t - p.t) || 1), vy = (n.y - p.y) / ((n.t - p.t) || 1);
+    s.speed = Math.round(Math.hypot(vx, vy) * 10) / 10;
+    s.heading = Math.round(((Math.atan2(vx, vy) * 180 / Math.PI) + 360) % 360);
+    s.batt = Math.max(0, Math.round((100 - (s.t / t) * 58 - (s.phase === 'hover' ? 2 : 0)) * 10) / 10);
+    s.link = Math.round(88 + 10 * Math.sin(s.t / 47) + 4 * Math.sin(s.t / 13));
+    s.mode = s.phase === 'climb' ? 'TAKEOFF' : s.phase === 'descend' || s.phase === 'hover' ? '确认目标' : s.phase === 'land' ? 'LAND' : (i > dStart ? 'RTL 返航' : '搜救巡航');
+  }
+  return { samples, total: t, HOME, AREA, TARGET, foundIdx, foundT: samples[foundIdx] ? samples[foundIdx].t : 0, planPts };
+})();
+const GEO0 = { lat: 30.5728, lon: 104.0668 };
+const toLat = y => GEO0.lat + y / 111320, toLon = x => GEO0.lon + x / (111320 * Math.cos(GEO0.lat * Math.PI / 180));
+const sarState = { cur: 0, playing: false, speed: 1, lastTs: 0 };
+const fmtT = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function sarSampleAt(time) {
+  const a = SAR.samples;
+  let i = Math.floor(time / 0.5); i = clamp(i, 0, a.length - 1);
+  return { s: a[i], idx: i };
+}
+function sarCoverage(idx) {
+  // 已搜覆盖：以 60m 半幅宽沿已飞轨迹累计，近似为搜索区内被扫过的行带比例（按行完成度）
+  const rowsDone = new Set();
+  for (let i = 0; i <= idx; i += 4) { const s = SAR.samples[i]; if (s.phase === 'cruise' && s.x > 880 && s.x < 2120 && s.y > 880 && s.y < 2120) rowsDone.add(Math.round((s.y - 1000) / 200)); }
+  return clamp(Math.round(rowsDone.size / 6 * 100), 0, 100);
+}
+function sarUpdate() {
+  const { s, idx } = sarSampleAt(sarState.cur);
+  $('t-mode').textContent = s.mode;
+  $('t-alt').textContent = s.alt.toFixed(1) + ' m';
+  $('t-spd').textContent = s.speed.toFixed(1) + ' m/s';
+  $('t-hdg').textContent = s.heading + '°';
+  $('t-batt').textContent = s.batt + ' %';
+  $('t-link').textContent = s.link + ' %';
+  $('t-lat').textContent = toLat(s.y).toFixed(6);
+  $('t-lon').textContent = toLon(s.x).toFixed(6);
+  $('t-clock').innerHTML = `<b>T+${fmtT(sarState.cur)}</b> / ${fmtT(SAR.total)}`;
+  $('scrub').value = Math.round(sarState.cur / SAR.total * 1000);
+  $('cov-pct').textContent = sarCoverage(idx) + '%';
+  const found = sarState.cur >= SAR.foundT;
+  $('t-event').innerHTML = found ? '<span class="bad" style="font-weight:700">已发现 SOS 信标 · 已抵近确认</span>' : '尚未发现';
+  drawSAR2D(idx, found);
+  if (window.SAR3D) window.SAR3D.update(s, idx, found);
+  // 事件时间线点亮
+  document.querySelectorAll('#sar-events .ev').forEach(el => {
+    el.style.opacity = sarState.cur >= parseFloat(el.dataset.t) ? '1' : '.38';
+  });
+}
+/* SAR 2D 视图 */
+const s2c = $('sar2d'), s2x = s2c.getContext('2d');
+function drawSAR2D(idx, found) {
+  const r = s2c.parentElement.getBoundingClientRect(); if (!r.width) return;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  if (s2c.width !== Math.round(r.width * dpr)) { s2c.width = r.width * dpr; s2c.height = r.height * dpr; }
+  const W = s2c.width, H = s2c.height, sc = Math.min(W, H) / 3260, ox = (W - 3000 * sc) / 2, oy = (H - 3000 * sc) / 2;
+  const X = v => ox + v * sc, Y = v => oy + (3000 - v) * sc;
+  s2x.clearRect(0, 0, W, H); s2x.fillStyle = '#0b0d0c'; s2x.fillRect(0, 0, W, H);
+  // 覆盖雾面（沿轨迹粗描）
+  s2x.strokeStyle = 'rgba(255,196,0,0.07)'; s2x.lineWidth = 120 * sc; s2x.lineCap = 'round'; s2x.lineJoin = 'round';
+  s2x.beginPath();
+  let started = false;
+  for (let i = 0; i <= idx; i += 2) { const s = SAR.samples[i]; if (s.phase !== 'cruise') continue; if (!started) { s2x.moveTo(X(s.x), Y(s.y)); started = true; } else s2x.lineTo(X(s.x), Y(s.y)); }
+  s2x.stroke();
+  // 搜索区与计划线
+  const [ax, ay, bx, by] = SAR.AREA;
+  s2x.strokeStyle = 'rgba(255,196,0,0.65)'; s2x.lineWidth = 1.6; s2x.strokeRect(X(ax), Y(by), (bx - ax) * sc, (by - ay) * sc);
+  s2x.strokeStyle = 'rgba(232,230,223,0.30)'; s2x.setLineDash([6, 6]); s2x.lineWidth = 1.2; s2x.beginPath();
+  SAR.planPts.forEach(([px, py], i) => i ? s2x.lineTo(X(px), Y(py)) : s2x.moveTo(X(px), Y(py))); s2x.stroke(); s2x.setLineDash([]);
+  // 限制区
+  for (const z of SCENE.zones) { const [a, b, c2, d] = z.rect; s2x.fillStyle = 'rgba(255,71,71,0.13)'; s2x.fillRect(X(a), Y(d), (c2 - a) * sc, (d - b) * sc); }
+  // 实际轨迹
+  s2x.strokeStyle = '#FFC400'; s2x.lineWidth = 2.2; s2x.beginPath();
+  for (let i = 0; i <= idx; i++) { const s = SAR.samples[i]; i ? s2x.lineTo(X(s.x), Y(s.y)) : s2x.moveTo(X(s.x), Y(s.y)); }
+  s2x.stroke();
+  // 目标
+  if (found) { const p = 5 + 3 * Math.sin(performance.now() / 240); s2x.beginPath(); s2x.arc(X(SAR.TARGET[0]), Y(SAR.TARGET[1]), p + 6, 0, TAU); s2x.strokeStyle = '#FF4747'; s2x.lineWidth = 2; s2x.stroke(); }
+  s2x.beginPath(); s2x.arc(X(SAR.TARGET[0]), Y(SAR.TARGET[1]), 3.5, 0, TAU); s2x.fillStyle = found ? '#FF4747' : 'rgba(255,71,71,0.4)'; s2x.fill();
+  // 无人机当前位置
+  const cur = SAR.samples[idx];
+  s2x.beginPath(); s2x.arc(X(cur.x), Y(cur.y), 6, 0, TAU); s2x.fillStyle = '#A8DCFF'; s2x.fill();
+  s2x.strokeStyle = 'rgba(168,220,255,0.5)'; s2x.beginPath(); s2x.arc(X(cur.x), Y(cur.y), 11, 0, TAU); s2x.stroke();
+  s2x.fillStyle = 'rgba(232,230,223,0.75)'; s2x.font = `${11 * dpr}px sans-serif`; s2x.textAlign = 'left';
+  s2x.fillText('起飞点', X(SAR.HOME[0]) + 9, Y(SAR.HOME[1]) - 8);
+}
+/* 回放控制 */
+$('btn-play').onclick = () => {
+  sarState.playing = !sarState.playing;
+  if (sarState.cur >= SAR.total - 0.01 && sarState.playing) sarState.cur = 0;
+  $('btn-play').textContent = sarState.playing ? '⏸' : '▶';
+  sarState.lastTs = performance.now();
+};
+$('scrub').oninput = e => { sarState.cur = e.target.value / 1000 * SAR.total; sarUpdate(); };
+document.querySelectorAll('.spd').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.spd').forEach(v => v.classList.remove('on')); b.classList.add('on');
+  sarState.speed = parseFloat(b.dataset.s);
+});
+(function sarLoop(ts) {
+  if (sarState.playing && $('view-sar').classList.contains('on')) {
+    const dt = (ts - sarState.lastTs) / 1000; sarState.lastTs = ts;
+    sarState.cur = Math.min(SAR.total, sarState.cur + dt * sarState.speed);
+    if (sarState.cur >= SAR.total) { sarState.playing = false; $('btn-play').textContent = '▶'; }
+    sarUpdate();
+  } else sarState.lastTs = ts;
+  requestAnimationFrame(sarLoop);
+})(0);
+(function sarEvents() {
+  const evs = [
+    [0, 'T+00:00 起飞 · 爬升至 60 m 搜索高度'],
+    [SAR.samples.find(s => s.phase === 'cruise')?.t || 0, '进入搜索区 · 往复式扫描开始'],
+    [SAR.foundT, '发现 SOS 信标热源 · 脱离航线抵近'],
+    [SAR.foundT + 12, '下降至 25 m 悬停确认 · 回传坐标'],
+    [SAR.total - 60, '返航 RTL · 沿安全走廊返回'],
+    [SAR.total - 12, '降落 · 任务结束（样例轨迹）']
+  ];
+  $('sar-events').innerHTML = evs.map(([tt, txt]) => `<div class="ev" data-t="${tt}" style="opacity:.38"><span style="color:#FFC400;font-family:Consolas,monospace">T+${fmtT(tt)}</span> · ${txt}</div>`).join('');
+})();
+/* 视图切换 */
+function showView(sar) {
+  $('nav-ops').classList.toggle('on', !sar);
+  $('nav-sar').classList.toggle('on', sar);
+  document.querySelector('#console main').style.display = sar ? 'none' : '';
+  $('view-sar').classList.toggle('on', sar);
+  if (sar) {
+    if (window.SAR3D) window.SAR3D.resize();
+    sarUpdate();
+    log('切换到搜救态势 · 双视图同源遥测流（样例轨迹回放）');
+  }
+}
+$('nav-ops').onclick = () => showView(false);
+$('nav-sar').onclick = () => showView(true);
+
+/* ---------------- 主页 → 任务台 ---------------- */
+let entered = false;
+function enterConsole() {
+  if (entered) return; entered = true;
+  const home = $('home');
+  home.classList.add('leaving');
+  setTimeout(() => {
+    home.style.display = 'none';
+    $('console').classList.remove('off');
+    fitMap(); drawMap();
+    log('已进入调度任务台 · GET /health ok · 模拟适配层就绪');
+  }, 560);
+}
+$('enter-btn').onclick = enterConsole;
+$('portal').onclick = enterConsole;
+</script>
+<script>
+setTimeout(() => {
+  if (!window.SAR3D && document.getElementById('view-sar').classList.contains('on'))
+    document.getElementById('tag3d').innerHTML = '<b>3D</b> · 引擎加载失败（Three.js CDN 不可达）· 2D 视图与回放不受影响';
+}, 8000);
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const S = 0.01;
+const W3 = (x, y, alt) => new THREE.Vector3(x * S, alt * S, -y * S);
+try {
+  const shell = document.getElementById('view3d-shell');
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  shell.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x0b0d0c, 55, 130);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+  const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 400);
+  camera.position.set(34, 26, 12);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(15, 0.3, -15);
+  controls.enableDamping = true; controls.dampingFactor = 0.06;
+  controls.maxPolarAngle = 1.45; controls.minDistance = 2.5; controls.maxDistance = 90;
+
+  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a1a1c, 0.5));
+  const sun = new THREE.DirectionalLight(0xfff2cf, 2.2);
+  sun.position.set(18, 30, 6); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -22; sun.shadow.camera.right = 22; sun.shadow.camera.top = 22; sun.shadow.camera.bottom = -22;
+  scene.add(sun);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(34, 34), new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.95, metalness: 0.05 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(15, 0, -15); ground.receiveShadow = true; scene.add(ground);
+  const grid = new THREE.GridHelper(30, 30, 0x3a3d42, 0x232428);
+  grid.position.set(15, 0.01, -15); grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+
+  const bMat = new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.55, metalness: 0.35 });
+  SCENE.obstacles.forEach((p, i) => {
+    const xs = p.map(v => v[0]), ys = p.map(v => v[1]);
+    const w = (Math.max(...xs) - Math.min(...xs)) * S, d = (Math.max(...ys) - Math.min(...ys)) * S;
+    const h = 0.18 + (i % 5) * 0.07;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat);
+    m.position.copy(W3((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, 0)); m.position.y = h / 2;
+    m.castShadow = m.receiveShadow = true; scene.add(m);
+  });
+  for (const z of SCENE.zones) {
+    const [a, b, c2, d] = z.rect;
+    const m = new THREE.Mesh(new THREE.BoxGeometry((c2 - a) * S, 1.1, (d - b) * S),
+      new THREE.MeshBasicMaterial({ color: 0xff4747, transparent: true, opacity: 0.10, depthWrite: false }));
+    m.position.copy(W3((a + c2) / 2, (b + d) / 2, 0)); m.position.y = 0.55; scene.add(m);
+    const eg = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0xff4747, transparent: true, opacity: 0.5 }));
+    eg.position.copy(m.position); scene.add(eg);
+  }
+  for (const st of SCENE.sites) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(st.r * S * 0.92, st.r * S, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffc400, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+    ring.rotation.x = -Math.PI / 2; ring.position.copy(W3(st.x, st.y, 0)); ring.position.y = 0.02; scene.add(ring);
+  }
+  {
+    const [ax, ay, bx, by] = SAR.AREA;
+    const pts = [W3(ax, ay, 2), W3(bx, ay, 2), W3(bx, by, 2), W3(ax, by, 2), W3(ax, ay, 2)];
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xffc400, transparent: true, opacity: 0.7 })));
+  }
+  {
+    const pts = SAR.planPts.map(([x, y]) => W3(x, y, 60));
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineDashedMaterial({ color: 0xe8e6df, dashSize: 0.35, gapSize: 0.22, transparent: true, opacity: 0.4 }));
+    line.computeLineDistances(); scene.add(line);
+  }
+  const trailPos = new Float32Array(SAR.samples.length * 3);
+  SAR.samples.forEach((s, i) => { const v = W3(s.x, s.y, s.alt); trailPos.set([v.x, v.y, v.z], i * 3); });
+  const trailGeo = new THREE.BufferGeometry();
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xffc400 }));
+  trail.frustumCulled = false; scene.add(trail);
+  const beacon = new THREE.Group();
+  const bCore = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff4747 }));
+  const bRing = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.2, 40), new THREE.MeshBasicMaterial({ color: 0xff4747, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
+  bRing.rotation.x = -Math.PI / 2;
+  beacon.add(bCore, bRing);
+  beacon.position.copy(W3(SAR.TARGET[0], SAR.TARGET[1], 0)); beacon.position.y = 0.1;
+  beacon.visible = false; scene.add(beacon);
+
+  const drone = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color: 0xffc400, metalness: 0.85, roughness: 0.32 });
+  const carbon = new THREE.MeshStandardMaterial({ color: 0x17181a, metalness: 0.4, roughness: 0.55 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x10161d, metalness: 0.9, roughness: 0.12 });
+  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.38, 0.15, 6), paint);
+  hull.castShadow = true; drone.add(hull);
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), glass);
+  canopy.scale.set(1.25, 0.62, 0.9); canopy.position.y = 0.07; drone.add(canopy);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 10), new THREE.MeshBasicMaterial({ color: 0xa8dcff }));
+  eye.position.set(0, 0.02, 0.30); drone.add(eye);
+  const rotors = [];
+  [[0.34, 0.34], [-0.34, 0.34], [0.34, -0.34], [-0.34, -0.34]].forEach(([ax, az]) => {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.045, 0.07), carbon);
+    arm.position.set(ax / 2, 0.03, az / 2); arm.rotation.y = -Math.atan2(az, ax); drone.add(arm);
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.07, 12), carbon);
+    motor.position.set(ax, 0.06, az); drone.add(motor);
+    const spin = new THREE.Group(); spin.position.set(ax, 0.11, az);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.008, 0.045), carbon); spin.add(blade);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.27, 32),
+      new THREE.MeshBasicMaterial({ color: 0xcfd8e2, transparent: true, opacity: 0.13, side: THREE.DoubleSide }));
+    disc.rotation.x = -Math.PI / 2; spin.add(disc);
+    drone.add(spin); rotors.push(spin);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.2, 8), carbon);
+    leg.position.set(ax * 0.55, -0.16, az * 0.55); drone.add(leg);
+  });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.2), new THREE.MeshStandardMaterial({ color: 0xe8e6df, roughness: 0.6 }));
+  box.position.y = -0.3; box.castShadow = true; drone.add(box);
+  const cross1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.005), new THREE.MeshBasicMaterial({ color: 0xff4747 }));
+  cross1.position.set(0, -0.3, 0.103); drone.add(cross1);
+  const cross2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.005), new THREE.MeshBasicMaterial({ color: 0xff4747 }));
+  cross2.position.set(0, -0.3, 0.103); drone.add(cross2);
+  scene.add(drone);
+
+  function resize() {
+    const w = shell.clientWidth, h = shell.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(shell); resize();
+
+  const clock = new THREE.Clock();
+  (function animate() {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta(), tt = clock.elapsedTime;
+    rotors.forEach((r, i) => r.rotation.y += dt * (38 + i * 3));
+    if (beacon.visible) { const p = 1 + 0.35 * Math.sin(tt * 4); bRing.scale.set(p, p, p); }
+    controls.update();
+    renderer.render(scene, camera);
+  })();
+
+  window.SAR3D = {
+    resize,
+    update(s, idx, found) {
+      drone.position.copy(W3(s.x, s.y, s.alt)); drone.position.y += 0.32;
+      const hd = s.heading * Math.PI / 180;
+      drone.rotation.y = Math.atan2(Math.sin(hd), -Math.cos(hd)) + Math.PI;
+      trailGeo.setDrawRange(0, Math.max(2, idx + 1));
+      beacon.visible = found;
+    }
+  };
+} catch (e) {
+  document.getElementById('tag3d').innerHTML = '<b>3D</b> · 引擎初始化失败 · 2D 视图与回放不受影响';
+  console.warn('SAR3D init failed', e);
+}
+</script>
+</body>

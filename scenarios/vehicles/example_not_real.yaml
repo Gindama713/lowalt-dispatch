@@ -1,0 +1,43 @@
+# 示例参数，非真实平台数据
+#
+# 这组数字是为了让 v0 草稿场景的能量和备降约束能够跑通而手写的，
+# 不是任何机体的手册值、飞控日志或标定结果。
+# 禁止把本文件改名为 placeholder.yaml，禁止把这些数字写进材料当成实测能耗。
+# 真实平台参数仍由学生 A 填 scenarios/vehicles/placeholder.yaml；那个文件现在全是 null。
+#
+# 选取方式（仍然是示例，不是拟合真实飞机）：
+#   巡航 12 m/s，使 S4-02 的 90 s 时限盖不住约 3 km 以上的航程；
+#   最大载荷 3 kg，使 S4-01 的 6 kg 超重、S1 的 2 kg 仍可飞；
+#   可用能量 / 单位距离能耗让“航程 + 撤离到备降点”在一部分长航线上不够，
+#   从而基线会给出负余量，带约束搜索则判无解。风没有建。
+
+vehicle_schema_version: 0
+is_example: true
+example_warning: "示例参数，非真实平台数据"
+
+vehicles:
+  example_not_real:
+    is_example: true
+    display_name: "示例机型（非真实平台）"
+    platform_note: "不对应已确认的 PX4 固件或实机。只用于软件在环之前的规划跑通。"
+
+    # 草稿备降点 GeoJSON 的 compatible_vehicle_types 只写了 placeholder。
+    # 示例机型借用这套几何，不表示已经做过机型适配。
+    draft_geometry_vehicle_alias: placeholder
+
+    max_payload_kg: 3.0
+    cruise_speed_mps: 12.0
+    climb_rate_mps: 3.0
+    descent_rate_mps: 2.5
+    max_bank_deg: 25.0
+    service_ceiling_m: 120.0
+
+    battery_capacity_wh: 500.0
+    usable_battery_wh: 280.0
+    energy_per_meter_wh: 0.05
+    energy_per_second_hover_wh: 0.6
+    reserve_policy_wh: 40.0
+
+    source: "synthetic:example_not_real_v0"
+    calibrated_at: null
+    uncertainty_note: "整组参数为手写示例，未标定；无风；误差范围未知。不能当作真实平台数据。"

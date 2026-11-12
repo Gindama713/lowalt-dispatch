@@ -9,6 +9,9 @@
 #   payload_kg / time_limit_s 是"任务设计参数"，属于场景定义，可以直接改。
 #   机型能力、电池容量、速度、爬升率等**平台参数不在这里**，见
 #   scenarios/vehicles/placeholder.yaml，当前全部待定，禁止套用通用数值。
+#   可选任务字段 initial_energy_wh / reserve_energy_wh 缺省时才回落到机型文件。
+#   S4-05 只把 initial_energy_wh 写成 50 Wh：低于独立校验器演示用的合成保留量 80 Wh。
+#   规划层不写 reserve_energy_wh，缺省回落到机型文件。这不是标定值。
 #
 # events[].at_s 是相对任务开始的秒数，不是墙上时间。这样脚本可以脱离具体日期复用。
 
@@ -275,8 +278,10 @@ scenarios:
     destination: {x_m: 1500, y_m: 2800, alt_m: 30}
     payload_kg: 1.0
     time_limit_s: 900
-    # 起飞时电量是任务级输入（调度员看得到电池状态），不是机型参数，
-    # 所以可以写在场景里。这里的 50 Wh 低于策略保留量，任务在起飞前就不可行。
+    # 起飞时电量是任务级输入（调度员看得到电池状态），不是机型参数。
+    # 50 Wh 低于独立校验器演示用的合成保留量 80 Wh，校验器会在起飞前拒绝。
+    # 规划层不在这里写 reserve_energy_wh，缺省回落到机型文件的策略保留量。
+    # 不是平台标定。placeholder.yaml 的 null 保持 null。
     initial_energy_wh: 50.0
     wind_profile: headwind_strong
     link_profile: nominal

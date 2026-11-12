@@ -7,6 +7,8 @@
 - 数据：`assets/scene.js` 内联仓库 `scenarios/v0/` 草稿几何（局部 ENU 米制）与构造的仿真业务数据。
 - 技术：MapLibre GL JS + deck.gl（CDN 固定版本），原生 JS，不使用 React / Vite / Three.js。
 
+三维与视觉前端不在本目录，在 [`apps/web-3d/`](../web-3d/)（Vite + React + TypeScript；展厅用 R3F / Three.js）。阶段 0–1：工程骨架、ENU 换算、M350 RTK 比例骨架。天地图 / Cesium ion token 与后端接线未实现。本目录保持上游的静态调度控制台。
+
 ## 其他前端入口
 
 - [AERIS 调度控制台](../console/README.md)提供实时遥测、Agent 调度和动态 ASCII 航图。

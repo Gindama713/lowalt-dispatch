@@ -187,8 +187,11 @@ _FALLBACK_FIELDS = {
         "checks",
     },
     "DiversionMarginProfile": {"route_id", "plan_version", "reserve_wh", "samples"},
-    "DiversionMarginSample": {"s_m", "t_s", "margin_wh", "nearest_site_id"},
+    "DiversionMarginSample": {"s_m", "t_s", "margin_wh", "nearest_site_id", "energy_need_wh"},
 }
+
+# 静态控制台采样写于该字段加入之前。模型默认 None，缺省即未提供，不改写 apps/web/assets/scene.js。
+OPTIONAL_SAMPLE_FIELDS = {"energy_need_wh"}
 
 # C-SCENE-DATA@1 允许的"新增展示字段"（除模型字段之外只允许这些键）
 ALLOWED_EXTRA_TASK_FIELDS = {"scenario_ref", "title", "status", "is_simulated"}
@@ -1614,7 +1617,11 @@ def _check_profile_fields(scene_data: dict[str, Any]) -> list[str]:
 
         for sample_index, sample in enumerate(_samples(profile)):
             sample_path = f"{label}.samples[{sample_index}]"
-            sample_missing = sorted(field for field in sample_fields if field not in sample)
+            sample_missing = sorted(
+                field
+                for field in sample_fields
+                if field not in sample and field not in OPTIONAL_SAMPLE_FIELDS
+            )
             if sample_missing:
                 violations.append(
                     f"{sample_path}(s_m={_num(sample.get('s_m'))}) 缺少 DiversionMarginSample 字段 "

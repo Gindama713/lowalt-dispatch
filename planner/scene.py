@@ -35,6 +35,8 @@ class LandingSite:
     x: float
     y: float
     radius_m: float
+    compatible_vehicle_types: tuple[str, ...] = ()
+    occupied: bool = False
 
 
 @dataclass(frozen=True)
@@ -80,8 +82,14 @@ def load_scene(scene_dir: Path | None = None) -> Scene:
     for f in site_fc["features"]:
         props = f["properties"]
         x, y = f["geometry"]["coordinates"]
+        compat = props.get("compatible_vehicle_types") or []
         sites[props["id"]] = LandingSite(
-            site_id=props["id"], x=float(x), y=float(y), radius_m=float(props.get("radius_m", 0.0))
+            site_id=props["id"],
+            x=float(x),
+            y=float(y),
+            radius_m=float(props.get("radius_m", 0.0)),
+            compatible_vehicle_types=tuple(str(v) for v in compat),
+            occupied=bool(props.get("occupied", False)),
         )
 
     return Scene(obstacles=obstacles, zones=zones, sites=sites, crs_note=obs_fc.get("crs_note", ""))

@@ -18,6 +18,10 @@ results/
   frozen_v0.1.meta.json
 ```
 
+`example_vehicle_compare.csv` 是 **示例机型** `scenarios/vehicles/example_not_real.yaml` 下的规划对照，不是冻结的参赛结果，也不是实飞。meta 里 `vehicle_is_example=true`，`git_commit` 为 `088b4f9`。`min_landing_margin=-1000000` 表示该采样点没有几何可达备降点，不是能量缺口。`astar_dynamic` 的 mock 仍然不入库。
+
+这份 CSV 测于合并上游之前（栅格净空 20 m，且当时 S4-05 的任务单能量与现在的 `initial_energy_wh: 50` 不同）。合并后不要把表里的航程或余量当成当前代码的重跑结果。
+
 冻结时建议把 git commit 写进文件名或 meta，确保能回到当时的代码：
 
 ```bash
