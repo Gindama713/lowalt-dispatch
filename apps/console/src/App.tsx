@@ -21,10 +21,14 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
+  Cloud,
+  CloudRain,
+  CloudSun,
   Command,
   Compass,
   Crosshair,
   Download,
+  Droplets,
   Expand,
   Eye,
   EyeOff,
@@ -49,7 +53,9 @@ import {
   Plus,
   Radar,
   Radio,
+  RefreshCw,
   Route,
+  Satellite,
   ScanLine,
   Settings2,
   ShieldCheck,
@@ -57,6 +63,7 @@ import {
   Sparkles,
   SquareTerminal,
   Target,
+  Thermometer,
   Timer,
   TriangleAlert,
   Wifi,
@@ -88,10 +95,19 @@ import {
 import "./enhancements.css";
 import { Attitude, MarginChart, Sparkline } from "./Charts";
 import { demoPatch, TerrainModel } from "./terrain";
+import {
+  fetchRadarFrames,
+  fetchWeather,
+  weatherCodeLabel,
+  windDirectionLabel,
+  type RadarFrame,
+  type WeatherSnapshot,
+} from "./weather";
 import { useFlight, useLiveTelemetry } from "./useFlight";
 import Assistant from "./assistant/Assistant";
 import type { AssistantDraft, PreviewRoute } from "./assistant/types";
 import type {
+  Basemap,
   EventItem,
   Layers,
   PanelId,
@@ -102,6 +118,10 @@ import type {
 
 const metric = (value: number | null | undefined, digits = 1) =>
   value?.toFixed(digits) ?? "—";
+
+/** 把 Promise.allSettled 的 rejection 归一成可展示的中文提示。 */
+const errorText = (reason: unknown, fallback: string) =>
+  reason instanceof Error && reason.message ? reason.message : fallback;
 
 const initialEvents: EventItem[] = [
   {
@@ -139,6 +159,28 @@ const defaultPanels: Record<PanelId, boolean> = {
   analysis: true,
   events: true,
   perception: true,
+};
+type WeatherStatus = "idle" | "loading" | "ok" | "error";
+/** 公开气象/雷达在界面内的完整状态（全部免 key、演示参考）。 */
+type WeatherState = {
+  snapshot: WeatherSnapshot | null;
+  status: WeatherStatus;
+  error: string;
+  radarEnabled: boolean;
+  radarFrames: RadarFrame[] | null;
+  radarFrame: number;
+  radarError: string;
+  windEnabled: boolean;
+};
+const initialWeather: WeatherState = {
+  snapshot: null,
+  status: "idle",
+  error: "",
+  radarEnabled: false,
+  radarFrames: null,
+  radarFrame: 0,
+  radarError: "",
+  windEnabled: true,
 };
 type TaskDraft = {
   name: string;
@@ -281,6 +323,181 @@ function Rotor({
   );
 }
 
+/**
+ * 任务区公开气象 HUD。
+ * 数据来自 Open-Meteo（当前风/阵风/能见度/云量/降水/温度）与 RainViewer 雷达，
+ * 均为免 key 公开数据，卡片仅标注来源与更新时间。
+ */
+function WeatherHud({
+  state,
+  open,
+  onToggle,
+  onRetry,
+}: {
+  state: WeatherState;
+  open: boolean;
+  onToggle: () => void;
+  onRetry: () => void;
+}) {
+  const snapshot = state.snapshot;
+  const frames = state.radarFrames;
+  const frame =
+    frames && frames.length
+      ? frames[Math.min(state.radarFrame, frames.length - 1)]
+      : null;
+  const updatedLabel = snapshot
+    ? new Date(snapshot.updatedAt).toLocaleTimeString("zh-CN", { hour12: false })
+    : null;
+  const visibilityKm =
+    snapshot?.visibilityM == null
+      ? "—"
+      : (snapshot.visibilityM / 1000).toFixed(1);
+  const windLabel = windDirectionLabel(snapshot?.windDirDeg ?? null);
+  const loading = state.status === "loading";
+  const radarLabel = frame
+    ? `${frame.label} · ${Math.min(state.radarFrame, frames!.length - 1) + 1}/${frames!.length}`
+    : state.radarError
+      ? "暂不可用"
+      : "加载中";
+  return (
+    <section
+      className={`weather-hud glass ${open ? "" : "collapsed"} ${
+        state.status === "error" ? "has-error" : ""
+      } ${loading ? "is-loading" : ""}`}
+      aria-label="任务区公开气象"
+    >
+      <header className="weather-hud-head">
+        <span className="weather-hud-title">
+          <CloudSun size={13} /> 任务区气象 <small>公开数据</small>
+        </span>
+        <div className="weather-hud-actions">
+          {loading && (
+            <span className="weather-sync" aria-label="正在刷新天气">
+              <RefreshCw size={11} />
+            </span>
+          )}
+          <button
+            onClick={onToggle}
+            aria-label={open ? "折叠天气卡片" : "展开天气卡片"}
+            aria-expanded={open}
+          >
+            <ChevronDown size={13} />
+          </button>
+        </div>
+      </header>
+      {!open ? (
+        <div className="weather-hud-compact">
+          <Wind size={12} />
+          {metric(snapshot?.windSpeedMs)} m/s · {windLabel}
+          {state.status === "error" && (
+            <span className="weather-mini-error">数据不可用</span>
+          )}
+        </div>
+      ) : state.status === "error" && !snapshot ? (
+        <div className="weather-empty" role="status">
+          <TriangleAlert size={14} />
+          <span>天气数据不可用</span>
+          <button onClick={onRetry}>重试</button>
+        </div>
+      ) : (state.status === "loading" || state.status === "idle") &&
+        !snapshot ? (
+        <div className="weather-empty" role="status">
+          <RefreshCw size={14} />
+          <span>正在获取任务区气象…</span>
+        </div>
+      ) : (
+        <>
+          <div className="weather-hero">
+            <span
+              className="weather-wind-arrow"
+              style={{ transform: `rotate(${snapshot?.windDirDeg ?? 0}deg)` }}
+              aria-hidden="true"
+            >
+              <Wind size={16} />
+            </span>
+            <div className="weather-hero-main">
+              <strong>
+                {metric(snapshot?.windSpeedMs)}
+                <small>m/s</small>
+              </strong>
+              <span>
+                {windLabel} · 来向 {metric(snapshot?.windDirDeg, 0)}°
+              </span>
+            </div>
+            <div className="weather-temp">
+              <strong>
+                {metric(snapshot?.temperatureC)}
+                <small>°C</small>
+              </strong>
+              <span>{weatherCodeLabel(snapshot?.code ?? null)}</span>
+            </div>
+          </div>
+          <div className="weather-grid">
+            <div>
+              <span>
+                <Wind size={10} /> 阵风
+              </span>
+              <strong>
+                {metric(snapshot?.gustMs)}
+                <small>m/s</small>
+              </strong>
+            </div>
+            <div>
+              <span>
+                <Eye size={10} /> 能见度
+              </span>
+              <strong>
+                {visibilityKm}
+                <small>km</small>
+              </strong>
+            </div>
+            <div>
+              <span>
+                <Cloud size={10} /> 云量
+              </span>
+              <strong>
+                {metric(snapshot?.cloudPct, 0)}
+                <small>%</small>
+              </strong>
+            </div>
+            <div>
+              <span>
+                <Droplets size={10} /> 降水
+              </span>
+              <strong>
+                {metric(snapshot?.precipMm, 2)}
+                <small>mm</small>
+              </strong>
+            </div>
+          </div>
+          {state.radarEnabled && (
+            <div className="weather-radar-row">
+              <span>
+                <Radar size={10} /> 雷达回波
+              </span>
+              <strong>{radarLabel}</strong>
+            </div>
+          )}
+          {state.status === "error" && (
+            <div className="weather-stale" role="status">
+              天气数据不可用 · 重试
+              <button onClick={onRetry} aria-label="重试天气数据">
+                <RefreshCw size={11} />
+              </button>
+            </div>
+          )}
+          <footer className="weather-hud-foot">
+            <span>Open-Meteo 公开气象数据</span>
+            {updatedLabel && (
+              <time dateTime={snapshot?.updatedAt}>{updatedLabel} 更新</time>
+            )}
+          </footer>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function App() {
   const preferences = useRef(loadPreferences()).current;
   const [panels, setPanels] = useState<Record<PanelId, boolean>>(
@@ -311,6 +528,7 @@ export default function App() {
     restrictions: true,
     routes: true,
     scan: true,
+    hillshade: true,
   });
   const [showLayers, setShowLayers] = useState(false);
   const [compare, setCompare] = useState(true);
@@ -319,6 +537,10 @@ export default function App() {
   const [showGeographic, setShowGeographic] = useState(false);
   const [demoVisible, setDemoVisible] = useState(true);
   const [realTerrain, setRealTerrain] = useState(false);
+  const [basemap, setBasemap] = useState<Basemap>("dark");
+  const [weather, setWeather] = useState<WeatherState>(initialWeather);
+  const [weatherOpen, setWeatherOpen] = useState(true);
+  const [weatherNonce, setWeatherNonce] = useState(0);
   const [mapStatus, setMapStatus] = useState("连接真实底图");
   const [locationOpen, setLocationOpen] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<GeoPlace | null>(null);
@@ -409,6 +631,101 @@ export default function App() {
       ].slice(0, 100),
     [manualEvents, progress],
   );
+
+  // 天气坐标优先取任务起点，否则使用地图当前选点/中心。
+  const weatherTarget = useMemo<LngLat>(
+    () => geoMission.origin?.point ?? coordinate,
+    [geoMission.origin, coordinate],
+  );
+  useEffect(() => {
+    let disposed = false;
+    const controller = new AbortController();
+    const [lng, lat] = weatherTarget;
+    const load = async () => {
+      setWeather((w) => ({ ...w, status: "loading", error: "" }));
+      const [weatherResult, radarResult] = await Promise.allSettled([
+        fetchWeather(lng, lat, controller.signal),
+        fetchRadarFrames(controller.signal),
+      ]);
+      if (disposed) return;
+      setWeather((current) => {
+        const next = { ...current };
+        if (weatherResult.status === "fulfilled") {
+          next.snapshot = weatherResult.value;
+          next.status = "ok";
+          next.error = "";
+        } else {
+          next.status = "error";
+          next.error = errorText(weatherResult.reason, "天气数据不可用");
+        }
+        if (radarResult.status === "fulfilled") {
+          next.radarFrames = radarResult.value.frames;
+          next.radarFrame = Math.max(
+            0,
+            Math.min(current.radarFrame, radarResult.value.frames.length - 1),
+          );
+          next.radarError = "";
+        } else {
+          next.radarFrames = null;
+          next.radarFrame = 0;
+          next.radarError = errorText(radarResult.reason, "雷达回波暂不可用");
+        }
+        return next;
+      });
+    };
+    void load();
+    // 公开气象每 10 分钟刷新一次；坐标变化由依赖重置。
+    const timer = window.setInterval(() => void load(), 10 * 60 * 1000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      controller.abort();
+    };
+  }, [weatherTarget, weatherNonce]);
+  // 雷达帧轮播：仅开启雷达且未减少动态效果时播放（帧来自 RainViewer 最近 2–3 帧）。
+  useEffect(() => {
+    if (!weather.radarEnabled || motionReduced) return;
+    const count = weather.radarFrames?.length ?? 0;
+    if (count < 2) return;
+    const timer = window.setInterval(() => {
+      setWeather((w) => {
+        const total = w.radarFrames?.length ?? 0;
+        return total < 2
+          ? w
+          : { ...w, radarFrame: (w.radarFrame + 1) % total };
+      });
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [weather.radarEnabled, weather.radarFrames, motionReduced]);
+  const mapWeather = useMemo(() => {
+    const frames = weather.radarFrames;
+    const index =
+      frames && frames.length
+        ? Math.min(weather.radarFrame, frames.length - 1)
+        : -1;
+    const frame = index >= 0 ? frames![index] : null;
+    const snapshot = weather.snapshot;
+    const wind =
+      weather.windEnabled &&
+      snapshot &&
+      snapshot.windSpeedMs !== null &&
+      snapshot.windDirDeg !== null
+        ? { speedMs: snapshot.windSpeedMs, dirDeg: snapshot.windDirDeg }
+        : null;
+    return {
+      radarTiles:
+        weather.radarEnabled && frame ? [frame.tiles] : (null as string[] | null),
+      radarVisible: weather.radarEnabled && Boolean(frame),
+      radarOpacity: 0.55,
+      wind,
+    };
+  }, [
+    weather.radarEnabled,
+    weather.radarFrames,
+    weather.radarFrame,
+    weather.windEnabled,
+    weather.snapshot,
+  ]);
 
   const notify = useCallback((message: string) => setToast(message), []);
   const addEvent = useCallback(
@@ -1004,7 +1321,9 @@ export default function App() {
                   {showLocalTrack
                     ? (position?.frame ?? "局部定位")
                     : mapKind === "world"
-                      ? "CARTO DARK MATTER / WGS84"
+                      ? basemap === "satellite"
+                        ? "ESRI WORLD IMAGERY / WGS84"
+                        : "CARTO DARK MATTER / WGS84"
                       : "地形实验 / ENU · 3 × 3 km"}
                 </span>
               </div>
@@ -1021,6 +1340,30 @@ export default function App() {
                   <MapPin size={13} />
                   <span>地点定位</span>
                 </button>
+                {mapKind === "world" && !showLocalTrack && (
+                  <button
+                    className={`map-surface-toggle basemap-toggle ${
+                      basemap === "satellite" ? "selected" : ""
+                    }`}
+                    aria-pressed={basemap === "satellite"}
+                    aria-label="切换卫星实景底图"
+                    title="暗色底图 / 卫星实景（Esri World Imagery，免 key）"
+                    onClick={() =>
+                      setBasemap((value) =>
+                        value === "satellite" ? "dark" : "satellite",
+                      )
+                    }
+                  >
+                    {basemap === "satellite" ? (
+                      <Satellite size={13} />
+                    ) : (
+                      <Map size={13} />
+                    )}
+                    <span>
+                      {basemap === "satellite" ? "卫星实景" : "暗色底图"}
+                    </span>
+                  </button>
+                )}
                 {localTrackAvailable && !locationOpen && (
                   <button
                     className="map-surface-toggle live-map-toggle"
@@ -1106,6 +1449,7 @@ export default function App() {
                 <MapSurface
                   ref={map}
                   mode={mode}
+                  basemap={basemap}
                   layers={layers}
                   progress={progress}
                   playing={playing}
@@ -1130,6 +1474,7 @@ export default function App() {
                   terrainModel={terrainModel}
                   mission={geoMission}
                   selected={selectedPlace}
+                  weather={mapWeather}
                   onStatus={setMapStatus}
                 />
               )}
@@ -1312,6 +1657,14 @@ export default function App() {
                   </div>
                 </div>
               )}
+              {mapKind === "world" && !locationOpen && !focus && (
+                <WeatherHud
+                  state={weather}
+                  open={weatherOpen}
+                  onToggle={() => setWeatherOpen((v) => !v)}
+                  onRetry={() => setWeatherNonce((v) => v + 1)}
+                />
+              )}
               {showLayers && (
                 <div className="layer-menu glass">
                   <strong>地图图层</strong>
@@ -1354,8 +1707,74 @@ export default function App() {
                       {realTerrain && <Check size={11} />}
                     </span>
                   </button>
+                  <button
+                    onClick={() =>
+                      setLayers((v) => ({ ...v, hillshade: !v.hillshade }))
+                    }
+                    title="DEM 晕渲叠加，仅在开启在线三维地形时显示"
+                  >
+                    <span>地形晕渲 · 公开高程</span>
+                    <span
+                      className={`checkbox ${layers.hillshade ? "checked" : ""}`}
+                    >
+                      {layers.hillshade && <Check size={11} />}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setBasemap("dark")}
+                    aria-pressed={basemap === "dark"}
+                  >
+                    <span>暗色底图 · CARTO</span>
+                    <span
+                      className={`checkbox ${basemap === "dark" ? "checked" : ""}`}
+                    >
+                      {basemap === "dark" && <Check size={11} />}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setBasemap("satellite")}
+                    aria-pressed={basemap === "satellite"}
+                  >
+                    <span>卫星实景 · Esri</span>
+                    <span
+                      className={`checkbox ${basemap === "satellite" ? "checked" : ""}`}
+                    >
+                      {basemap === "satellite" && <Check size={11} />}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setWeather((v) => ({
+                        ...v,
+                        radarEnabled: !v.radarEnabled,
+                      }))
+                    }
+                  >
+                    <span>天气雷达 · RainViewer</span>
+                    <span
+                      className={`checkbox ${weather.radarEnabled ? "checked" : ""}`}
+                    >
+                      {weather.radarEnabled && <Check size={11} />}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setWeather((v) => ({
+                        ...v,
+                        windEnabled: !v.windEnabled,
+                      }))
+                    }
+                  >
+                    <span>风场风羽 · 地图中心</span>
+                    <span
+                      className={`checkbox ${weather.windEnabled ? "checked" : ""}`}
+                    >
+                      {weather.windEnabled && <Check size={11} />}
+                    </span>
+                  </button>
                   <p>
-                    在线地形是公开高程，非实时测绘。演示场景仅为固定锚点叠加。
+                    在线地形为公开高程、非实时测绘；卫星影像来自 Esri World
+                    Imagery。天气与雷达为 Open-Meteo / RainViewer 公开数据。
                   </p>
                 </div>
               )}
@@ -1419,7 +1838,9 @@ export default function App() {
               <div className="map-bottom-note">
                 <span>
                   {mapKind === "world"
-                    ? "真实底图 · 航线 / 限制区 / 建筑叠加为演示"
+                    ? basemap === "satellite"
+                      ? "卫星实景 · Esri World Imagery · 航线/限制区/建筑叠加为演示"
+                      : "真实底图 · 航线 / 限制区 / 建筑叠加为演示"
                     : "局部 ENU · 虚拟场景 · 地形／建筑高度为演示"}
                 </span>
                 <span>
@@ -2230,7 +2651,7 @@ export default function App() {
                     <span className="tag-purple">DEMO DATA</span>
                     <h3>透明的数据边界</h3>
                     <p>
-                      航线来自仓库几何A*基线；仪表为合成遥测。地形、建筑高度与余量曲线为界面演示，不用于飞行决策。
+                      航线来自仓库几何A*基线；仪表为合成遥测。地形、建筑高度与余量曲线为界面演示。卫星影像、公开DEM、天气与雷达来自第三方公开服务，仅作演示参考，不用于飞行决策。
                     </p>
                   </div>
                   <button
