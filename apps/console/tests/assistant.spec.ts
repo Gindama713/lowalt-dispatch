@@ -21,6 +21,25 @@ async function ask(page: Page, text: string) {
   );
 }
 
+test("project questions show the exact document evidence and can report no match", async ({
+  page,
+}) => {
+  await openAssistant(page);
+  await expect(page.getByText("S1-01 回放 · 演示限制区均未生效")).toBeVisible();
+  await ask(page, "ACK 代表飞完了吗？");
+  const message = page.locator(".assistant-message.assistant").last();
+  await expect(message).toContainText("执行端受理并启动了执行器");
+  const source = message
+    .locator(".assistant-document")
+    .filter({ hasText: "7.3 ACK 语义" });
+  await source.locator("summary").click();
+  await expect(source).toContainText("docs/接口契约.md");
+  await expect(source.locator("blockquote")).toBeVisible();
+  await ask(page, "查项目文档，量子纠缠超光速通信");
+  await expect(message).toContainText("没有找到能回答这个问题的依据");
+  await expect(message.locator(".assistant-document")).toHaveCount(0);
+});
+
 test("natural-language tasks support missing fields, actual route preview and explicit draft saving", async ({
   page,
 }) => {

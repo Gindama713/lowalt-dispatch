@@ -43,4 +43,23 @@ test("reviewed local task reaches actual M3/M2/M4 and survives panel reopening",
     .getByRole("button", { name: "结束本次合成测试", exact: true })
     .click();
   await expect(page.getByText("执行失败", { exact: true })).toBeVisible();
+  await panel.locator("select").selectOption("S2-01");
+  await panel.getByRole("button", { name: "生成待审任务" }).click();
+  await panel
+    .getByRole("checkbox", { name: "我已核对参数，确认仅进行本地合成执行" })
+    .check();
+  await confirm.click();
+  await expect(panel).toContainText("R01");
+  await panel.getByRole("button", { name: "关闭面板" }).click();
+  await page.getByRole("button", { name: "打开调度助手", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "向调度助手提问" })
+    .fill("这单为什么被拦？");
+  await page.getByRole("button", { name: "发送给调度助手" }).click();
+  await expect(status.filter({ hasText: "S2-01" })).toContainText(
+    "独立校验拦截",
+  );
+  await expect(
+    page.locator(".assistant-message.assistant").last(),
+  ).toContainText("R01");
 });

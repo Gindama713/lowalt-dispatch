@@ -1457,7 +1457,7 @@ export default function App() {
                   </span>
                   <span>
                     <i className="legend-zone" />
-                    限制区
+                    限制区范围
                   </span>
                   <span>
                     <i className="legend-site" />
@@ -1471,9 +1471,11 @@ export default function App() {
               </div>
               <div className="map-bottom-note">
                 <span>
-                  {mapKind === "world"
-                    ? "真实底图 · 航线 / 限制区 / 建筑叠加为演示"
-                    : "局部 ENU · 虚拟场景 · 地形／建筑高度为演示"}
+                  {!liveMode && demoVisible && layers.restrictions
+                    ? "S1-01 回放 · 演示限制区均未生效"
+                    : mapKind === "world"
+                      ? "真实底图 · 航线 / 限制区 / 建筑叠加为演示"
+                      : "局部 ENU · 虚拟场景 · 地形／建筑高度为演示"}
                 </span>
                 <span>
                   {mode === "3d"

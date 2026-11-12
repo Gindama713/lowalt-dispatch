@@ -35,6 +35,14 @@ export type ToolTrace = {
   arguments?: Record<string, unknown>;
   result?: Record<string, unknown>;
 };
+export type DocumentExcerpt = {
+  path: string;
+  heading: string;
+  start_line: number;
+  end_line: number;
+  revision: string;
+  text: string;
+};
 export type PreviewRoute = {
   status: "geometry_only";
   route_id: string;
@@ -65,6 +73,7 @@ export type AssistantResult = {
   provider: "local" | "maas";
   text: string;
   traces: ToolTrace[];
+  documents?: DocumentExcerpt[];
   draft: AssistantDraft | null;
   draft_digest: string | null;
   route?: PreviewRoute | { status: "blocked"; reason: string } | null;
@@ -98,6 +107,7 @@ export type Packet =
   | { type: "heartbeat" };
 
 export const toolLabels: Record<string, string> = {
+  search_project_docs: "检索项目文档",
   get_flight_status: "读取遥测快照",
   get_task_status: "查询当前联调任务",
   list_events: "查询页面事件",

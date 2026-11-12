@@ -341,6 +341,31 @@
 .assistant-message.error .assistant-message-text {
   color: #d1b18c;
 }
+
+.assistant-document {
+  border-left: 2px solid var(--purple, #baa7ef);
+  margin: 7px 0;
+  padding: 5px 8px;
+  color: #d4cced;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.assistant-document summary {
+  cursor: pointer;
+}
+.assistant-document summary svg {
+  vertical-align: text-bottom;
+  margin-right: 5px;
+}
+.assistant-document p {
+  margin: 6px 0;
+  color: #a6a8bb;
+}
+.assistant-document blockquote {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
 .assistant-traces {
   margin: 0 0 13px;
   background: #131820;

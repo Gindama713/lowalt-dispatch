@@ -57,6 +57,8 @@ def test_rejected_route_never_reaches_executor_and_report_tamper_is_rejected(tmp
         blocked = dispatch.propose("S2-01")
         result = dispatch.confirm(blocked["task_id"], blocked["review_digest"])
         assert result["planning_status"] == "blocked"
+        assert "侵入限制区 R01" in result["reason"]
+        assert "自 +40s 生效" in result["reason"]
         assert result["execution"] is None
         assert dispatch.store.count() == 0
         proposal = dispatch.propose("S1-01")

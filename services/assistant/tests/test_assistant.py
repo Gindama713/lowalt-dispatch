@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from uuid import UUID, uuid4
 
 import pytest
@@ -11,6 +12,7 @@ from pydantic import ValidationError
 from services.api.runtime import LocalDispatch
 from services.assistant import app as api
 from services.assistant.engine import Engine, ModelUnavailable, Settings
+from services.assistant.knowledge import ROOT
 from services.assistant.models import Bounds, Draft, Terrain, Turn
 from services.assistant.tools import Toolset, segment_box
 
@@ -238,6 +240,45 @@ def test_model_without_evidence_cannot_present_it_as_queried_facts():
     result = Engine(Settings(provider="maas"), model).run(make_turn(), lambda p: None)
     assert "飞行完成" not in result["text"]
     assert "未查询业务证据" in result["text"]
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("ACK 代表飞完了吗？", "执行端受理并启动了执行器"),
+        ("查项目文档，S2-01 的 R01 限制区什么时候生效？", "40 秒生效"),
+        ("怎么启动 AERIS 调度助手？", "npm.cmd run dev:all"),
+    ],
+)
+def test_document_questions_return_repo_excerpts_with_exact_provenance(question, expected):
+    result, _ = run(make_turn(question))
+    assert [trace["name"] for trace in result["traces"]] == ["search_project_docs"]
+    assert expected in result["text"]
+    for excerpt in result["documents"]:
+        content = (ROOT / excerpt["path"]).read_bytes()
+        lines = content.decode("utf-8-sig").splitlines()
+        assert excerpt["text"] == "\n".join(lines[excerpt["start_line"] - 1 : excerpt["end_line"]])
+        assert excerpt["revision"] == sha256(content).hexdigest()[:12]
+    assert result["documents"]
+    assert result["task_status"] is None and result["draft"] is None
+
+
+@pytest.mark.parametrize("question", ["ACK 代表飞完了吗？", "查项目文档，量子纠缠超光速通信"])
+def test_model_document_reply_uses_retrieved_evidence(question):
+    model = FakeModel(
+        [
+            tool_call("search_project_docs", {"query": question}),
+            {"role": "assistant", "content": "假设性回答"},
+        ]
+    )
+    result = Engine(Settings(provider="maas"), model).run(make_turn(question), lambda _: None)
+    evidence = json.loads(model.messages[1][-1]["content"])
+    assert result["documents"] == evidence["excerpts"]
+    if evidence["status"] == "ok":
+        assert "执行端受理并启动了执行器" in result["text"]
+    else:
+        assert "没有找到能回答" in result["text"]
+    assert "假设性回答" not in result["text"]
 
 
 def test_task_status_uses_selected_dispatch_and_separates_ack_from_completion(tmp_path):

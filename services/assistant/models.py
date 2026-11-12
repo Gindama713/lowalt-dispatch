@@ -144,3 +144,7 @@ class DraftUpdate(Contract):
 
 class NoArgs(Contract):
     pass
+
+
+class DocumentQuery(Contract):
+    query: str = Field(min_length=1, max_length=3000, pattern=r"\S")

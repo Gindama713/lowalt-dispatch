@@ -15,6 +15,7 @@ from pathlib import Path
 from threading import RLock
 from uuid import UUID, uuid4
 
+from agent.contracts import AgentStatus
 from agent.execution import ExecutionStatus
 from agent.messaging import MqttCommandChannel
 from agent.planning import M2Tools
@@ -249,6 +250,24 @@ class LocalDispatch:
 
                 with Path(record.audit_path).open(encoding="utf-8") as stream:
                     events = [json.loads(line) for line in deque(stream, maxlen=30)]
+            reason = result.reason if result else "等待确认或审计恢复，不会自动重放"
+            if result and result.status == AgentStatus.BLOCKED:
+                rejected = next(
+                    (
+                        event
+                        for event in reversed(events)
+                        if event.get("event") == "candidate_rejected"
+                        and event.get("task_id") == task_id
+                        and event.get("run_id") == result.run_id
+                    ),
+                    None,
+                )
+                if rejected:
+                    details = [check["detail"] for check in rejected["feedback"]]
+                    if details:
+                        reason = "\n".join(
+                            [f"候选航线 {rejected['plan_version']} 校验记录", *details, reason]
+                        )
             return {
                 "task_id": task_id,
                 "scenario_id": proposal["scenario_id"],
@@ -259,7 +278,7 @@ class LocalDispatch:
                 "planning_status": result.status
                 if result
                 else ("reconcile_required" if record else "awaiting_confirmation"),
-                "reason": result.reason if result else "等待确认或审计恢复，不会自动重放",
+                "reason": reason,
                 "result": result.model_dump(mode="json") if result else None,
                 "execution": execution,
                 "observation": observation,

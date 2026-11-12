@@ -14,7 +14,8 @@ from core.geometry import polyline_length
 from planner.astar import plan
 from planner.grid import build_grid
 from planner.scene import load_scene
-from services.assistant.models import Draft, DraftUpdate, NoArgs, Turn
+from services.assistant.knowledge import search
+from services.assistant.models import DocumentQuery, Draft, DraftUpdate, NoArgs, Turn
 from services.assistant.telemetry import STALE_SECONDS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -73,6 +74,10 @@ def point_at(route, progress):
 
 class Toolset:
     SPECS = {
+        "search_project_docs": (
+            "查找项目规则、接口和操作说明，返回原文、文件位置和内容版本。",
+            DocumentQuery,
+        ),
         "get_flight_status": ("读取当前界面遥测、时间和来源，不作适航或备降安全判断。", NoArgs),
         "get_task_status": ("查询联调面板选中的本地合成任务，读取规划、回执和独立执行状态。", NoArgs),
         "list_events": ("读取本次页面会话的事件记录并按类型统计。", NoArgs),
@@ -113,6 +118,14 @@ class Toolset:
         result = getattr(self, name)(validated)
         self.results[name] = result
         return result
+
+    def search_project_docs(self, args: DocumentQuery):
+        excerpts = search(args.query)
+        return {
+            "status": "ok" if excerpts else "no_match",
+            "source": "仓库项目文档",
+            "excerpts": excerpts,
+        }
 
     def get_flight_status(self, _args):
         ctx = self.turn.context
@@ -350,7 +363,9 @@ class Toolset:
     def get_capabilities(self, _args):
         return {
             "available": [
-                "当前页面遥测查询",
+                "项目文档检索与原文出处",
+                "当前页面的演示或 M4 遥测查询",
+                "本地合成任务状态与回执查询",
                 "虚拟地点查询",
                 "多轮任务草稿",
                 "实际几何A*路线预览",
@@ -358,11 +373,10 @@ class Toolset:
                 "本页事件解释",
             ],
             "pending": [
-                "真实PX4遥测",
                 "M3跨服务确认与审计查询",
                 "机型能量参数",
                 "含备降硬约束的动态规划",
-                "执行回执",
+                "PX4 任务执行与飞控回执",
             ],
             "dispatch_enabled": False,
             "is_simulated": True,

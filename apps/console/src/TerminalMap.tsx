@@ -289,7 +289,8 @@ export function TerminalMap({
             )}
             {layers.restrictions && (
               <span>
-                <code data-ink="zone">X</code> 限制区 {scene.zones.length}
+                <code data-ink="zone">X</code> S1-01 限制区 {scene.zones.length}{" "}
+                · 均未生效
               </span>
             )}
             {layers.routes && (

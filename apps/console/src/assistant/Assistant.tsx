@@ -3,6 +3,7 @@ import {
   ArrowDownToLine,
   ArrowRight,
   Bot,
+  BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
@@ -56,6 +57,12 @@ type Props = {
   onEvent: (title: string, detail: string) => void;
 };
 const suggestions = [
+  {
+    title: "查询项目文档",
+    text: "ACK 代表飞完了吗？",
+    subtitle: "查看接口语义和原文依据",
+    icon: BookOpen,
+  },
   {
     title: "创建配送任务",
     text: "从医疗物资中转站到北区应急中心，配送1公斤药品，优先级P1",
@@ -644,6 +651,22 @@ export default function Assistant(props: Props) {
               {message.text && (
                 <p className="assistant-message-text">{message.text}</p>
               )}
+              {message.result?.documents?.map((doc) => (
+                <details
+                  className="assistant-document"
+                  key={`${doc.path}:${doc.start_line}`}
+                >
+                  <summary>
+                    <BookOpen size={13} />
+                    <span>{doc.heading}</span>
+                  </summary>
+                  <p>
+                    {doc.path} · 第 {doc.start_line}–{doc.end_line} 行 ·{" "}
+                    {doc.revision}
+                  </p>
+                  <blockquote>{doc.text}</blockquote>
+                </details>
+              ))}
               {message.result?.task_status && (
                 <TaskStatusCard task={message.result.task_status} />
               )}
@@ -673,9 +696,13 @@ export default function Assistant(props: Props) {
                   <span>
                     {message.result.task_status
                       ? "本地合成任务"
-                      : props.context.telemetry_mode === "live"
-                        ? "LIVE TELEMETRY"
-                        : "DEMO CONTEXT"}
+                      : message.result.traces.some(
+                            (trace) => trace.name === "search_project_docs",
+                          )
+                        ? "项目文档"
+                        : props.context.telemetry_mode === "live"
+                          ? "LIVE TELEMETRY"
+                          : "DEMO CONTEXT"}
                   </span>
                   <span>{message.result.turn_id.slice(0, 8)}</span>
                 </div>
