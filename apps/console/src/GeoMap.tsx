@@ -8,7 +8,6 @@ import {
 import * as maplibregl from "maplibre-gl";
 import {
   type GeoJSONSource,
-  type RasterTileSource,
   type StyleSpecification,
   type Map as LibreMap,
 } from "maplibre-gl";
@@ -16,7 +15,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { GRID, GRID_STEP, pointAlong, TerrainModel } from "./terrain";
-import { windDirectionLabel } from "./weather";
 import {
   enuToLngLat,
   type GeoMission,
@@ -24,7 +22,6 @@ import {
   type LngLat,
 } from "./geo";
 import type {
-  Basemap,
   Layers,
   Point,
   SceneData,
@@ -35,16 +32,6 @@ import type {
 
 export const CARTO_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
-/** Esri World Imagery：免 key 公开卫星影像，注意 URL 是 {z}/{y}/{x} 顺序。 */
-const SATELLITE_TILES = [
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-];
-const SATELLITE_ATTRIBUTION = "Esri, Maxar, Earthstar Geographics";
-/** AWS Terrarium 公开高程（Mapzen 编码），离线/失败时由 error 分支降级。 */
-const DEM_TILES = [
-  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-];
-const TERRAIN_EXAGGERATION = 1.35;
 maplibregl.setWorkerUrl(mapWorkerUrl);
 const offline: StyleSpecification = {
   version: 8,
@@ -81,16 +68,8 @@ export type GeoMapHandle = {
   retry: () => void;
   applyTerrain: (patch: TerrainPatch) => TerrainChange;
 };
-/** 天气叠加层：雷达瓦片与场中心风羽，全部为公开数据演示。 */
-export type WeatherOverlay = {
-  radarTiles: string[] | null;
-  radarVisible: boolean;
-  radarOpacity: number;
-  wind: { speedMs: number; dirDeg: number } | null;
-};
 export type GeoMapProps = {
   mode: ViewMode;
-  basemap: Basemap;
   layers: Layers;
   progress: number;
   playing: boolean;
@@ -104,7 +83,6 @@ export type GeoMapProps = {
   selected: GeoPlace | null;
   preview?: { route_id: string; waypoints: Point[] } | null;
   comparison?: { id: string; waypoints: Point[] } | null;
-  weather?: WeatherOverlay;
   onReady: () => void;
   onError: (message: string) => void;
   onPoint: (point: LngLat) => void;
@@ -171,14 +149,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       let styleAbort: AbortController | null = null;
       let tileTimeout: number | undefined;
       let terrainFailed = false;
-      let satelliteFailed = false;
-      let lastBasemap = dynamic.current.basemap;
-      let radarTileKey = "";
-      let windKey = "";
-      let windSignature = "";
-      let radarOpacityCache = -1;
-      let glowOpacityCache = -1;
-      const visibilityCache = new Map<string, string>();
       let draw: (() => void) | undefined;
       const labels: { marker: maplibregl.Marker; group: string }[] = [];
       const pins: maplibregl.Marker[] = [];
@@ -253,202 +223,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           group,
         });
       };
-      /** 新叠加层统一放在演示图层之下、底图之上。 */
-      function addBelowDemo(id: string) {
-        if (!map.getLayer(id)) return;
-        if (map.getLayer("demo-grid-lines"))
-          map.moveLayer(id, "demo-grid-lines");
-        else map.moveLayer(id);
-      }
-      /** 只在可见性真正变化时写入样式，避免每 150ms 触发无意义的样式更新。 */
-      function setLayerVisibility(id: string, visible: boolean) {
-        if (!map.getLayer(id)) return;
-        const value = visible ? "visible" : "none";
-        if (visibilityCache.get(id) === value) return;
-        map.setLayoutProperty(id, "visibility", value);
-        visibilityCache.set(id, value);
-      }
-      function syncBasemap() {
-        if (disposed || !mapReady) return;
-        if (!map.getSource("satellite")) {
-          map.addSource("satellite", {
-            type: "raster",
-            tiles: SATELLITE_TILES,
-            tileSize: 256,
-            maxzoom: 19,
-            attribution: SATELLITE_ATTRIBUTION,
-          });
-        }
-        if (!map.getLayer("satellite-layer")) {
-          map.addLayer({
-            id: "satellite-layer",
-            type: "raster",
-            source: "satellite",
-            paint: {
-              "raster-opacity": 1,
-              "raster-fade-duration": 220,
-              "raster-saturation": -0.12,
-            },
-          });
-          addBelowDemo("satellite-layer");
-        }
-        setLayerVisibility(
-          "satellite-layer",
-          dynamic.current.basemap === "satellite",
-        );
-        // 卫星影像偏亮，演示航线提高发光强度保持可读性。
-        if (map.getLayer("demo-route-glow")) {
-          const glow =
-            dynamic.current.basemap === "satellite" ? 0.78 : 0.55;
-          if (glow !== glowOpacityCache) {
-            glowOpacityCache = glow;
-            map.setPaintProperty("demo-route-glow", "line-opacity", glow);
-          }
-        }
-      }
-      /**
-       * 在线 DEM：raster-dem + 地形晕渲。关闭或失败时按“移除图层 → 关闭地形
-       * → 移除数据源”的顺序清理，避免 MapLibre 报“source 正被图层引用”。
-       */
-      function syncTerrain() {
-        if (disposed || !mapReady) return;
-        const p = dynamic.current;
-        if (p.realTerrain && !terrainFailed) {
-          if (!map.getSource("global-dem")) {
-            map.addSource("global-dem", {
-              type: "raster-dem",
-              tiles: DEM_TILES,
-              tileSize: 256,
-              maxzoom: 14,
-              encoding: "terrarium",
-              attribution: "Terrain © Mapzen / AWS Open Data",
-            });
-          }
-          if (!lastTerrain)
-            map.setTerrain({
-              source: "global-dem",
-              exaggeration: TERRAIN_EXAGGERATION,
-            });
-          if (!map.getLayer("dem-hillshade")) {
-            map.addLayer({
-              id: "dem-hillshade",
-              type: "hillshade",
-              source: "global-dem",
-              paint: {
-                "hillshade-exaggeration": 0.32,
-                "hillshade-shadow-color": "#05090e",
-                "hillshade-highlight-color": "#c2cfdf",
-                "hillshade-accent-color": "#263544",
-              },
-            });
-            addBelowDemo("dem-hillshade");
-          }
-          setLayerVisibility("dem-hillshade", p.layers.hillshade);
-          lastTerrain = true;
-          return;
-        }
-        if (terrainFailed && !p.realTerrain) terrainFailed = false;
-        if (
-          lastTerrain ||
-          map.getLayer("dem-hillshade") ||
-          map.getSource("global-dem")
-        ) {
-          map.setTerrain(null);
-          if (map.getLayer("dem-hillshade")) map.removeLayer("dem-hillshade");
-          if (map.getSource("global-dem")) map.removeSource("global-dem");
-          visibilityCache.delete("dem-hillshade");
-          lastTerrain = false;
-          if (!p.realTerrain)
-            state(online ? "真实底图 · CARTO" : "底图离线 · 坐标可用");
-        }
-      }
-      /** RainViewer 雷达拼图：固定 source，帧切换时只更新瓦片模板。 */
-      function syncRadar() {
-        if (disposed || !mapReady) return;
-        const overlay = dynamic.current.weather;
-        const tiles = overlay?.radarTiles ?? null;
-        const opacity = overlay?.radarOpacity ?? 0.55;
-        if (tiles?.length) {
-          const key = tiles.join("|");
-          const current = map.getSource("weather-radar") as
-            | RasterTileSource
-            | undefined;
-          if (!current) {
-            map.addSource("weather-radar", {
-              type: "raster",
-              tiles,
-              tileSize: 256,
-              attribution: "RainViewer · 公开雷达拼图",
-            });
-            radarTileKey = key;
-          } else if (key !== radarTileKey) {
-            current.setTiles(tiles);
-            radarTileKey = key;
-          }
-          if (!map.getLayer("weather-radar-layer")) {
-            map.addLayer({
-              id: "weather-radar-layer",
-              type: "raster",
-              source: "weather-radar",
-              paint: {
-                "raster-opacity": opacity,
-                "raster-fade-duration": 240,
-              },
-            });
-            addBelowDemo("weather-radar-layer");
-          }
-          if (opacity !== radarOpacityCache) {
-            radarOpacityCache = opacity;
-            map.setPaintProperty(
-              "weather-radar-layer",
-              "raster-opacity",
-              opacity,
-            );
-          }
-          setLayerVisibility(
-            "weather-radar-layer",
-            Boolean(overlay?.radarVisible),
-          );
-          return;
-        }
-        if (map.getLayer("weather-radar-layer"))
-          map.removeLayer("weather-radar-layer");
-        if (map.getSource("weather-radar")) map.removeSource("weather-radar");
-        visibilityCache.delete("weather-radar-layer");
-        radarTileKey = "";
-      }
-      /** 地图中心风羽：箭头按来向旋转，文本为公开气象风速。 */
-      function syncWind() {
-        if (!mapReady) {
-          windEl.hidden = true;
-          return;
-        }
-        const wind = dynamic.current.weather?.wind ?? null;
-        if (!wind || !Number.isFinite(wind.speedMs) || !Number.isFinite(wind.dirDeg)) {
-          windEl.hidden = true;
-          return;
-        }
-        windEl.hidden = false;
-        const center = map.getCenter();
-        const key = `${center.lng.toFixed(5)},${center.lat.toFixed(5)}`;
-        if (key !== windKey) {
-          windKey = key;
-          windMarker.setLngLat(center);
-        }
-        const signature = `${wind.speedMs.toFixed(1)}|${wind.dirDeg.toFixed(0)}`;
-        if (signature !== windSignature) {
-          windSignature = signature;
-          windArrow.style.transform = `rotate(${wind.dirDeg}deg)`;
-          windText.textContent = `${wind.speedMs.toFixed(1)} m/s · ${windDirectionLabel(wind.dirDeg)}来向`;
-        }
-      }
-      function syncOverlays() {
-        if (disposed || !mapReady) return;
-        syncBasemap();
-        syncTerrain();
-        syncRadar();
-        syncWind();
-      }
       function updateTerrain() {
         if (!mapReady || !map.getSource("demo-route")) return;
         const terrain = dynamic.current.terrainModel;
@@ -704,20 +478,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       const drone = new maplibregl.Marker({ element: droneEl })
         .setLngLat(enuToLngLat([150, 150]))
         .addTo(map);
-      // 风羽固定在地图中心，随地图平移更新位置；不拦截鼠标事件。
-      const windEl = document.createElement("div");
-      windEl.className = "geo-wind";
-      windEl.innerHTML =
-        '<span class="geo-wind-arrow" aria-hidden="true">↑</span><b></b><small>风羽 · 公开气象</small>';
-      const windArrow = windEl.querySelector<HTMLElement>(".geo-wind-arrow")!;
-      const windText = windEl.querySelector<HTMLElement>("b")!;
-      windEl.hidden = true;
-      const windMarker = new maplibregl.Marker({
-        element: windEl,
-        anchor: "center",
-      })
-        .setLngLat(map.getCenter())
-        .addTo(map);
       let lastProgress = -1,
         lastPreview = "",
         lastComparison = "",
@@ -746,19 +506,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           "no-scan",
           p.liveMode || !p.layers.scan || !p.playing || p.reducedMotion,
         );
-        syncOverlays();
-        if (p.basemap !== lastBasemap) {
-          lastBasemap = p.basemap;
-          state(
-            p.basemap === "satellite"
-              ? satelliteFailed
-                ? "卫星底图暂不可用 · 暗色底图可用"
-                : "卫星实景 · Esri World Imagery"
-              : online
-                ? "真实底图 · CARTO"
-                : "底图离线 · 坐标可用",
-          );
-        }
         if (disposed || !mapReady || !scene || !map.getSource("demo-route"))
           return;
         if (!p.liveMode && p.progress !== lastProgress) {
@@ -866,7 +613,29 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             ),
           );
         }
-
+        if (!p.realTerrain && terrainFailed) {
+          terrainFailed = false;
+          lastTerrain = false;
+          if (map.getSource("global-dem")) map.removeSource("global-dem");
+          state(online ? "真实底图 · CARTO" : "底图离线 · 坐标可用");
+        }
+        if (p.realTerrain !== lastTerrain && !terrainFailed) {
+          lastTerrain = p.realTerrain;
+          if (p.realTerrain) {
+            if (!map.getSource("global-dem"))
+              map.addSource("global-dem", {
+                type: "raster-dem",
+                tiles: [
+                  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+                ],
+                tileSize: 256,
+                maxzoom: 14,
+                encoding: "terrarium",
+                attribution: "Terrain © Mapzen / AWS Open Data",
+              });
+            map.setTerrain({ source: "global-dem", exaggeration: 1 });
+          } else map.setTerrain(null);
+        }
       };
       runtime.current = { map, update: updateTerrain, reload, scene };
       map.on("load", () => {
@@ -881,58 +650,27 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         lastComparison = "__reset";
         lastTerrain = false;
         terrainFailed = false;
-        satelliteFailed = false;
-        radarTileKey = "";
-        windKey = "";
-        radarOpacityCache = -1;
-        glowOpacityCache = -1;
-        visibilityCache.clear();
         install();
       });
       map.on("sourcedata", (event) => {
-        const sourceId = event.sourceId;
-        if (sourceId === "satellite") {
-          // 卫星瓦片成功即恢复状态；失败只更新状态条，不影响暗色底图。
-          if (event.tile && event.isSourceLoaded && satelliteFailed) {
-            satelliteFailed = false;
-            if (dynamic.current.basemap === "satellite")
-              state("卫星实景 · Esri World Imagery");
-          }
-          return;
-        }
-        if (sourceId === "weather-radar") return;
         if (
-          sourceId &&
-          !sourceId.startsWith("demo-") &&
-          !sourceId.startsWith("geo-") &&
-          sourceId !== "global-dem" &&
+          event.sourceId &&
+          !event.sourceId.startsWith("demo-") &&
+          !event.sourceId.startsWith("geo-") &&
+          event.sourceId !== "global-dem" &&
           event.isSourceLoaded &&
           event.tile
         ) {
           if (!online) {
             online = true;
             clearTimeout(tileTimeout);
-            state(
-              dynamic.current.basemap === "satellite"
-                ? "卫星实景 · Esri World Imagery"
-                : "真实底图 · CARTO",
-            );
+            state("真实底图 · CARTO");
           }
         }
       });
       map.on("error", (event) => {
         if (disposed) return;
         const sourceId = (event as { sourceId?: string }).sourceId;
-        if (sourceId === "satellite") {
-          // 卫星影像失败：只更新状态条并保留 CARTO 暗色底图，绝不阻塞地图。
-          if (!satelliteFailed) {
-            satelliteFailed = true;
-            if (dynamic.current.basemap === "satellite")
-              state("卫星底图暂不可用 · 暗色底图可用");
-          }
-          return;
-        }
-        if (sourceId === "weather-radar") return;
         if (sourceId === "global-dem") {
           terrainFailed = true;
           map.setTerrain(null);
@@ -988,7 +726,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         pins.forEach((p) => p.remove());
         labels.forEach((p) => p.marker.remove());
         drone.remove();
-        windMarker.remove();
         map.remove();
         runtime.current = null;
       };

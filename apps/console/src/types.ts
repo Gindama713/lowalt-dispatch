@@ -1,6 +1,4 @@
 export type ViewMode = "2d" | "3d";
-/** 双底图：CARTO Dark Matter 暗色底图 / Esri World Imagery 卫星实景。 */
-export type Basemap = "dark" | "satellite";
 export type PanelId =
   | "mission"
   | "instruments"
@@ -84,8 +82,6 @@ export type Layers = {
   restrictions: boolean;
   routes: boolean;
   scan: boolean;
-  /** DEM 晕渲叠加，仅在开启在线三维地形时生效。 */
-  hillshade: boolean;
 };
 export type SceneData = {
   metadata: { source: string; isSimulated: true; note: string };
