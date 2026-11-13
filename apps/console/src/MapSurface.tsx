@@ -26,6 +26,7 @@ export default forwardRef<
           ? world.current?.focus(point)
           : terrain.current?.focus(point),
       flyTo: (point: LngLat) => world.current?.flyTo(point),
+      showWindRegion: () => world.current?.showWindRegion(),
       retry: () => world.current?.retry(),
       applyTerrain: (patch) => {
         if (props.kind === "world" && world.current)

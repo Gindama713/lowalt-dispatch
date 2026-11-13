@@ -26,7 +26,6 @@ import {
   CloudSun,
   Command,
   Compass,
-  Crosshair,
   Download,
   Droplets,
   Expand,
@@ -97,13 +96,18 @@ import "./enhancements.css";
 import { Attitude, MarginChart, Sparkline } from "./Charts";
 import { demoPatch, TerrainModel } from "./terrain";
 import {
-  fetchRadarFrames,
+  fetchRadarFrame,
   fetchWeather,
+  fetchWindField,
+  hasRadarCoverage,
   weatherCodeLabel,
+  WEATHER_REFRESH_MS,
   windDirectionLabel,
   type RadarFrame,
   type WeatherSnapshot,
+  type WindField,
 } from "./weather";
+import { WIND_COLORS } from "./WindLayer";
 import { useFlight, useLiveTelemetry } from "./useFlight";
 import Assistant from "./assistant/Assistant";
 import type { AssistantDraft, PreviewRoute } from "./assistant/types";
@@ -166,23 +170,20 @@ type WeatherStatus = "idle" | "loading" | "ok" | "error";
 type WeatherState = {
   snapshot: WeatherSnapshot | null;
   status: WeatherStatus;
-  error: string;
-  radarEnabled: boolean;
-  radarFrames: RadarFrame[] | null;
-  radarFrame: number;
-  radarError: string;
-  windEnabled: boolean;
 };
 const initialWeather: WeatherState = {
   snapshot: null,
   status: "idle",
-  error: "",
-  radarEnabled: false,
-  radarFrames: null,
-  radarFrame: 0,
-  radarError: "",
-  windEnabled: true,
 };
+type WeatherLayer = "off" | "wind" | "radar";
+const weatherTime = (value: string | number) =>
+  new Date(value).toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 type TaskDraft = {
   name: string;
   payload: string;
@@ -326,40 +327,42 @@ function Rotor({
 
 /**
  * 任务区公开气象 HUD。
- * 数据来自 Open-Meteo（当前风/阵风/能见度/云量/降水/温度）与 RainViewer 雷达，
- * 均为免 key 公开数据，卡片仅标注来源与更新时间。
+ * 单点天气与地图叠加层各自显示来源和数据时间。
  */
 function WeatherHud({
   state,
   open,
+  targetLabel,
+  target,
+  layer,
+  wind,
+  windView,
+  windError,
+  radarLabel,
   onToggle,
   onRetry,
+  onShowWind,
 }: {
   state: WeatherState;
   open: boolean;
+  targetLabel: string;
+  target: LngLat;
+  layer: WeatherLayer;
+  wind: WindField | null;
+  windView: boolean;
+  windError: string;
+  radarLabel: string;
   onToggle: () => void;
   onRetry: () => void;
+  onShowWind: () => void;
 }) {
   const snapshot = state.snapshot;
-  const frames = state.radarFrames;
-  const frame =
-    frames && frames.length
-      ? frames[Math.min(state.radarFrame, frames.length - 1)]
-      : null;
-  const updatedLabel = snapshot
-    ? new Date(snapshot.updatedAt).toLocaleTimeString("zh-CN", { hour12: false })
-    : null;
   const visibilityKm =
     snapshot?.visibilityM == null
       ? "—"
       : (snapshot.visibilityM / 1000).toFixed(1);
   const windLabel = windDirectionLabel(snapshot?.windDirDeg ?? null);
   const loading = state.status === "loading";
-  const radarLabel = frame
-    ? `${frame.label} · ${Math.min(state.radarFrame, frames!.length - 1) + 1}/${frames!.length}`
-    : state.radarError
-      ? "暂不可用"
-      : "加载中";
   return (
     <section
       className={`weather-hud glass ${open ? "" : "collapsed"} ${
@@ -386,6 +389,14 @@ function WeatherHud({
           </button>
         </div>
       </header>
+      {open && (
+        <div className="weather-point" title={targetLabel}>
+          <span>{targetLabel}</span>
+          <small>
+            {target[1].toFixed(4)}°, {target[0].toFixed(4)}°
+          </small>
+        </div>
+      )}
       {!open ? (
         <div className="weather-hud-compact">
           <Wind size={12} />
@@ -471,29 +482,69 @@ function WeatherHud({
               </strong>
             </div>
           </div>
-          {state.radarEnabled && (
-            <div className="weather-radar-row">
-              <span>
-                <Radar size={10} /> 雷达回波
-              </span>
-              <strong>{radarLabel}</strong>
-            </div>
-          )}
           {state.status === "error" && (
             <div className="weather-stale" role="status">
-              天气数据不可用 · 重试
+              显示上次数据 · 刷新失败
               <button onClick={onRetry} aria-label="重试天气数据">
                 <RefreshCw size={11} />
               </button>
             </div>
           )}
           <footer className="weather-hud-foot">
-            <span>Open-Meteo 公开气象数据</span>
-            {updatedLabel && (
-              <time dateTime={snapshot?.updatedAt}>{updatedLabel} 更新</time>
+            <span>Open-Meteo · 10 米模型风</span>
+            {snapshot && (
+              <time dateTime={snapshot.validAt}>
+                {weatherTime(snapshot.validAt)}
+              </time>
             )}
           </footer>
         </>
+      )}
+      {layer === "wind" && (
+        <div className="weather-layer-key">
+          <div className="weather-layer-heading">
+            <span>
+              <Wind size={11} /> 长三角 · 10 米模型风
+            </span>
+            {!windView && <button onClick={onShowWind}>查看区域</button>}
+          </div>
+          {!windView ? (
+            <small>切到长三角总览可看风场。</small>
+          ) : windError ? (
+            <span role="status">
+              {windError} <button onClick={onRetry}>重试</button>
+            </span>
+          ) : !wind ? (
+            <span role="status">正在加载区域风场…</span>
+          ) : (
+            <>
+              <div
+                className="weather-wind-scale"
+                style={{
+                  background: `linear-gradient(to right, ${WIND_COLORS.map((c, i) => `${c} ${[0, 20, 40, 70, 100][i]}%`).join(",")})`,
+                }}
+              />
+              <div className="weather-wind-ticks">
+                <span>0</span>
+                <span>2</span>
+                <span>4</span>
+                <span>7</span>
+                <span>10+ m/s</span>
+              </div>
+              <small>CMA GRAPES · {weatherTime(wind.validAt)}</small>
+            </>
+          )}
+        </div>
+      )}
+      {layer === "radar" && (
+        <div className="weather-layer-key" role="status">
+          <div className="weather-layer-heading">
+            <span>
+              <Radar size={11} /> RainViewer 雷达回波
+            </span>
+          </div>
+          <small>{radarLabel}</small>
+        </div>
       )}
     </section>
   );
@@ -544,8 +595,19 @@ export default function App() {
   const [realTerrain, setRealTerrain] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>("dark");
   const [weather, setWeather] = useState<WeatherState>(initialWeather);
-  const [weatherOpen, setWeatherOpen] = useState(true);
+  const [weatherOpen, setWeatherOpen] = useState(false);
   const [weatherNonce, setWeatherNonce] = useState(0);
+  const [weatherLayer, setWeatherLayer] = useState<WeatherLayer>("off");
+  const [windView, setWindView] = useState(false);
+  const windMoving = useRef(false);
+  const [windOverviewRequested, setWindOverviewRequested] = useState(false);
+  const [windField, setWindField] = useState<WindField | null>(null);
+  const [windError, setWindError] = useState("");
+  const [radar, setRadar] = useState<RadarFrame | null>(null);
+  const [radarError, setRadarError] = useState(false);
+  const [radarCoverage, setRadarCoverage] = useState<
+    "unknown" | "covered" | "uncovered"
+  >("unknown");
   const [mapStatus, setMapStatus] = useState("连接真实底图");
   const [locationOpen, setLocationOpen] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<GeoPlace | null>(null);
@@ -638,100 +700,150 @@ export default function App() {
     [manualEvents, progress],
   );
 
-  // 天气坐标优先取任务起点，否则使用地图当前选点/中心。
-  const weatherTarget = useMemo<LngLat>(
-    () => geoMission.origin?.point ?? coordinate,
-    [geoMission.origin, coordinate],
-  );
+  const weatherTarget =
+    geoMission.origin?.point ??
+    selectedPlace?.point ??
+    enuToLngLat([1284, 1460]);
+  const [weatherLng, weatherLat] = weatherTarget;
+  const weatherTargetLabel = geoMission.origin
+    ? `起点 · ${geoMission.origin.name}`
+    : (selectedPlace?.name ?? "演示城区 · 上海");
+  const weatherMapVisible =
+    !showTerminal && !showLocalTrack && (liveMode || mapKind === "world");
+  const showWeatherHud =
+    weatherMapVisible && !locationOpen && (!focus || weatherLayer !== "off");
+  const weatherExpanded = showWeatherHud && weatherOpen;
   useEffect(() => {
-    let disposed = false;
     const controller = new AbortController();
-    const [lng, lat] = weatherTarget;
     const load = async () => {
-      setWeather((w) => ({ ...w, status: "loading", error: "" }));
-      const [weatherResult, radarResult] = await Promise.allSettled([
-        fetchWeather(lng, lat, controller.signal),
-        fetchRadarFrames(controller.signal),
-      ]);
-      if (disposed) return;
-      setWeather((current) => {
-        const next = { ...current };
-        if (weatherResult.status === "fulfilled") {
-          next.snapshot = weatherResult.value;
-          next.status = "ok";
-          next.error = "";
-        } else {
-          next.status = "error";
-          next.error = errorText(weatherResult.reason, "天气数据不可用");
-        }
-        if (radarResult.status === "fulfilled") {
-          next.radarFrames = radarResult.value.frames;
-          next.radarFrame = Math.max(
-            0,
-            Math.min(current.radarFrame, radarResult.value.frames.length - 1),
-          );
-          next.radarError = "";
-        } else {
-          next.radarFrames = null;
-          next.radarFrame = 0;
-          next.radarError = errorText(radarResult.reason, "雷达回波暂不可用");
-        }
-        return next;
-      });
+      setWeather((w) => ({ ...w, status: "loading" }));
+      try {
+        const snapshot = await fetchWeather(
+          weatherLng,
+          weatherLat,
+          controller.signal,
+        );
+        if (!controller.signal.aborted) setWeather({ snapshot, status: "ok" });
+      } catch {
+        if (!controller.signal.aborted)
+          setWeather((w) => ({ ...w, status: "error" }));
+      }
     };
+    setWeather(initialWeather);
+    if (!weatherMapVisible) return;
     void load();
-    // 公开气象每 10 分钟刷新一次；坐标变化由依赖重置。
-    const timer = window.setInterval(() => void load(), 10 * 60 * 1000);
+    const timer = window.setInterval(() => void load(), WEATHER_REFRESH_MS);
     return () => {
-      disposed = true;
       window.clearInterval(timer);
       controller.abort();
     };
-  }, [weatherTarget, weatherNonce]);
-  // 雷达帧轮播：仅开启雷达且未减少动态效果时播放（帧来自 RainViewer 最近 2–3 帧）。
+  }, [weatherLng, weatherLat, weatherNonce, weatherMapVisible]);
+  const windCache = useRef<{ field: WindField; loadedAt: number } | null>(null);
   useEffect(() => {
-    if (!weather.radarEnabled || motionReduced) return;
-    const count = weather.radarFrames?.length ?? 0;
-    if (count < 2) return;
-    const timer = window.setInterval(() => {
-      setWeather((w) => {
-        const total = w.radarFrames?.length ?? 0;
-        return total < 2
-          ? w
-          : { ...w, radarFrame: (w.radarFrame + 1) % total };
-      });
-    }, 1500);
-    return () => window.clearInterval(timer);
-  }, [weather.radarEnabled, weather.radarFrames, motionReduced]);
-  const mapWeather = useMemo(() => {
-    const frames = weather.radarFrames;
-    const index =
-      frames && frames.length
-        ? Math.min(weather.radarFrame, frames.length - 1)
-        : -1;
-    const frame = index >= 0 ? frames![index] : null;
-    const snapshot = weather.snapshot;
-    const wind =
-      weather.windEnabled &&
-      snapshot &&
-      snapshot.windSpeedMs !== null &&
-      snapshot.windDirDeg !== null
-        ? { speedMs: snapshot.windSpeedMs, dirDeg: snapshot.windDirDeg }
-        : null;
-    return {
-      radarTiles:
-        weather.radarEnabled && frame ? [frame.tiles] : (null as string[] | null),
-      radarVisible: weather.radarEnabled && Boolean(frame),
-      radarOpacity: 0.55,
-      wind,
+    if (weatherLayer !== "wind" || !weatherMapVisible || !windView) return;
+    const controller = new AbortController();
+    const load = async () => {
+      if (windMoving.current) return;
+      const cached = windCache.current;
+      if (cached && Date.now() - cached.loadedAt < WEATHER_REFRESH_MS) {
+        setWindField(cached.field);
+        setWindError("");
+        return;
+      }
+      try {
+        const field = await fetchWindField(controller.signal);
+        if (controller.signal.aborted) return;
+        windCache.current = { field, loadedAt: Date.now() };
+        setWindField(field);
+        setWindError("");
+      } catch (error) {
+        if (!controller.signal.aborted)
+          setWindError(errorText(error, "区域风场暂不可用"));
+      }
     };
+    void load();
+    const timer = window.setInterval(() => void load(), WEATHER_REFRESH_MS);
+    return () => {
+      window.clearInterval(timer);
+      controller.abort();
+    };
+  }, [weatherLayer, weatherMapVisible, windView, weatherNonce]);
+  useEffect(() => {
+    if (weatherLayer !== "radar" || !weatherMapVisible) return;
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const frame = await fetchRadarFrame(controller.signal);
+        if (controller.signal.aborted) return;
+        setRadar(frame);
+        setRadarError(false);
+      } catch {
+        if (!controller.signal.aborted) setRadarError(true);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 10 * 60 * 1000);
+    return () => {
+      window.clearInterval(timer);
+      controller.abort();
+    };
+  }, [weatherLayer, weatherMapVisible, weatherNonce]);
+  const radarHost = radar?.host;
+  useEffect(() => {
+    setRadarCoverage("unknown");
+    if (weatherLayer !== "radar" || !weatherMapVisible || !radarHost) return;
+    const controller = new AbortController();
+    void hasRadarCoverage(
+      radarHost,
+      [weatherLng, weatherLat],
+      controller.signal,
+    ).then(
+      (covered) => {
+        if (!controller.signal.aborted)
+          setRadarCoverage(covered ? "covered" : "uncovered");
+      },
+      () => {},
+    );
+    return () => controller.abort();
   }, [
-    weather.radarEnabled,
-    weather.radarFrames,
-    weather.radarFrame,
-    weather.windEnabled,
-    weather.snapshot,
+    radarHost,
+    weatherLayer,
+    weatherMapVisible,
+    weatherLng,
+    weatherLat,
+    weatherNonce,
   ]);
+  const radarLabel = radar
+    ? `${weatherTime(radar.time * 1000)} 帧 · ${radarError ? "刷新失败" : radarCoverage === "covered" ? "查询点有覆盖" : radarCoverage === "uncovered" ? "查询点无覆盖" : "查询点覆盖待确认"}`
+    : radarError
+      ? "雷达数据暂不可用"
+      : "正在加载雷达…";
+  useEffect(() => {
+    if (!windOverviewRequested) return;
+    map.current?.showWindRegion();
+    setWindOverviewRequested(false);
+  }, [windOverviewRequested]);
+  const showWindRegion = () => {
+    setMapKind("world");
+    setTerminalMap(false);
+    setShowGeographic(true);
+    setLocationOpen(false);
+    setMode("2d");
+    setWindOverviewRequested(true);
+  };
+  const selectWeatherLayer = (layer: WeatherLayer) => {
+    setWeatherLayer(layer);
+    setShowLayers(false);
+    if (layer === "off") return;
+    setLocationOpen(false);
+    setWeatherOpen(true);
+    if (layer === "wind" && (!weatherMapVisible || !windView || mode === "3d"))
+      showWindRegion();
+  };
+  const mapWeather = {
+    radarTiles: weatherLayer === "radar" ? (radar?.tiles ?? null) : null,
+    wind: weatherLayer === "wind" ? windField : null,
+  };
 
   const notify = useCallback((message: string) => setToast(message), []);
   const addEvent = useCallback(
@@ -1326,7 +1438,7 @@ export default function App() {
                 <span className="live-dot" />
                 <strong>{showLocalTrack ? "局部轨迹" : "空域态势"}</strong>
                 <span className="map-breadcrumb">
-{showTerminal
+                  {showTerminal
                     ? "LOCAL ENU / ASCII"
                     : showLocalTrack
                       ? (position?.frame ?? "局部定位")
@@ -1338,6 +1450,25 @@ export default function App() {
                 </span>
               </div>
               <div className="map-toolbar-actions">
+                <button
+                  className={`map-wind-button map-locate-button${weatherLayer === "wind" && weatherMapVisible ? " selected" : ""}`}
+                  aria-label="风场"
+                  aria-pressed={weatherLayer === "wind" && weatherMapVisible}
+                  title={
+                    weatherLayer === "wind" && weatherMapVisible && windView
+                      ? "关闭风场"
+                      : "查看长三角风场"
+                  }
+                  onClick={() =>
+                    selectWeatherLayer(
+                      weatherLayer === "wind" && weatherMapVisible && windView
+                        ? "off"
+                        : "wind",
+                    )
+                  }
+                >
+                  <Wind size={13} /> <span>风场</span>
+                </button>
                 <button
                   className={`map-locate-button ${locationOpen ? "selected" : ""}`}
                   aria-label="地点定位 L"
@@ -1555,14 +1686,14 @@ export default function App() {
                   playing={playing}
                   onReady={() => setReady(true)}
                   onError={setMapError}
-                  onPoint={(point) =>
+                  onPoint={(point) => {
                     selectPlace({
                       name: "地图选点",
                       point,
                       source: "map_click",
                       capturedAt: new Date().toISOString(),
-                    })
-                  }
+                    });
+                  }}
                   preview={assistantPreview}
                   comparison={reviewRoute}
                   kind={liveMode ? "world" : mapKind}
@@ -1575,6 +1706,10 @@ export default function App() {
                   mission={geoMission}
                   selected={selectedPlace}
                   weather={mapWeather}
+                  onWindView={setWindView}
+                  onWindMove={(moving) => {
+                    windMoving.current = moving;
+                  }}
                   onStatus={setMapStatus}
                 />
               )}
@@ -1708,62 +1843,85 @@ export default function App() {
                 <ChevronRight size={13} />
               </button>
               {!liveMode && panels.perception && !focus && (
-                <div className="perception-card glass">
+                <div
+                  className={`perception-card glass${weatherExpanded ? " compact" : ""}`}
+                >
                   <div className="mission-card-top">
                     <span>
                       <Radar size={12} /> 感知与搜索 <small>DEMO</small>
                     </span>
-                    <IconButton
-                      label="隐藏感知与搜索 5"
-                      onClick={() => togglePanel("perception")}
-                    >
-                      <Minus size={12} />
-                    </IconButton>
+                    {weatherExpanded ? (
+                      <IconButton
+                        label="展开感知与搜索"
+                        onClick={() => setWeatherOpen(false)}
+                      >
+                        <ChevronDown size={12} />
+                      </IconButton>
+                    ) : (
+                      <IconButton
+                        label="隐藏感知与搜索 5"
+                        onClick={() => togglePanel("perception")}
+                      >
+                        <Minus size={12} />
+                      </IconButton>
+                    )}
                   </div>
-                  <RadarDisplay
-                    heading={t.heading}
-                    playing={playing && !motionReduced}
-                  />
-                  <div className="perception-coverage">
-                    <strong>
-                      {t.coverage}
-                      <small>%</small>
-                    </strong>
-                    <span>
-                      区域覆盖
-                      <small>
-                        {t.scanned} / {t.totalCells} 网格
-                      </small>
-                    </span>
-                  </div>
-                  <div className="coverage-track">
-                    <i style={{ width: `${t.coverage}%` }} />
-                  </div>
-                  <div className="perception-metrics">
-                    <div>
-                      <span>目标距离</span>
-                      <strong>
-                        {t.distanceToTarget}
-                        <small> m</small>
-                      </strong>
-                    </div>
-                    <div>
-                      <span>前方障碍</span>
-                      <strong>
-                        {t.obstacleDistance}
-                        <small> m</small>
-                      </strong>
-                    </div>
-                  </div>
+                  {!weatherExpanded && (
+                    <>
+                      <RadarDisplay
+                        heading={t.heading}
+                        playing={playing && !motionReduced}
+                      />
+                      <div className="perception-coverage">
+                        <strong>
+                          {t.coverage}
+                          <small>%</small>
+                        </strong>
+                        <span>
+                          区域覆盖
+                          <small>
+                            {t.scanned} / {t.totalCells} 网格
+                          </small>
+                        </span>
+                      </div>
+                      <div className="coverage-track">
+                        <i style={{ width: `${t.coverage}%` }} />
+                      </div>
+                      <div className="perception-metrics">
+                        <div>
+                          <span>目标距离</span>
+                          <strong>
+                            {t.distanceToTarget}
+                            <small> m</small>
+                          </strong>
+                        </div>
+                        <div>
+                          <span>前方障碍</span>
+                          <strong>
+                            {t.obstacleDistance}
+                            <small> m</small>
+                          </strong>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
-              {mapKind === "world" && !locationOpen && !focus && (
+              {showWeatherHud && (
                 <WeatherHud
                   state={weather}
                   open={weatherOpen}
+                  target={weatherTarget}
+                  targetLabel={weatherTargetLabel}
+                  layer={weatherLayer}
+                  wind={windField}
+                  windView={windView}
+                  windError={windError}
+                  radarLabel={radarLabel}
                   onToggle={() => setWeatherOpen((v) => !v)}
                   onRetry={() => setWeatherNonce((v) => v + 1)}
+                  onShowWind={showWindRegion}
                 />
               )}
               {showLayers && (
@@ -1843,36 +2001,27 @@ export default function App() {
                       {basemap === "satellite" && <Check size={11} />}
                     </span>
                   </button>
-                  <button
-                    onClick={() =>
-                      setWeather((v) => ({
-                        ...v,
-                        radarEnabled: !v.radarEnabled,
-                      }))
-                    }
-                  >
-                    <span>天气雷达 · RainViewer</span>
-                    <span
-                      className={`checkbox ${weather.radarEnabled ? "checked" : ""}`}
-                    >
-                      {weather.radarEnabled && <Check size={11} />}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      setWeather((v) => ({
-                        ...v,
-                        windEnabled: !v.windEnabled,
-                      }))
-                    }
-                  >
-                    <span>风场风羽 · 地图中心</span>
-                    <span
-                      className={`checkbox ${weather.windEnabled ? "checked" : ""}`}
-                    >
-                      {weather.windEnabled && <Check size={11} />}
-                    </span>
-                  </button>
+                  {weatherMapVisible &&
+                    (
+                      [
+                        ["off", "关闭天气叠加"],
+                        ["wind", "区域风场 · 长三角"],
+                        ["radar", "降雨雷达 · RainViewer"],
+                      ] as const
+                    ).map(([layer, label]) => (
+                      <button
+                        key={layer}
+                        aria-pressed={weatherLayer === layer}
+                        onClick={() => selectWeatherLayer(layer)}
+                      >
+                        <span>{label}</span>
+                        <span
+                          className={`checkbox ${weatherLayer === layer ? "checked" : ""}`}
+                        >
+                          {weatherLayer === layer && <Check size={11} />}
+                        </span>
+                      </button>
+                    ))}
                   <p>
                     在线地形为公开高程、非实时测绘；卫星影像来自 Esri World
                     Imagery。天气与雷达为 Open-Meteo / RainViewer 公开数据。
@@ -1939,7 +2088,7 @@ export default function App() {
               </div>
               <div className="map-bottom-note">
                 <span>
-{!liveMode && demoVisible && layers.restrictions
+                  {!liveMode && demoVisible && layers.restrictions
                     ? "S1-01 回放 · 演示限制区均未生效"
                     : mapKind === "world"
                       ? basemap === "satellite"

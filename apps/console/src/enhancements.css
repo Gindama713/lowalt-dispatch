@@ -129,6 +129,17 @@
   background: #2d253d;
   border-color: #7d679c;
 }
+.map-wind-button {
+  color: #b3dcd5;
+  border-color: #497870;
+  background: #69b9a012;
+}
+.map-wind-button:hover,
+.map-wind-button.selected {
+  color: #cff5e7;
+  border-color: #75b2a3;
+  background: #25443f;
+}
 .map-surface-toggle {
   border-color: transparent;
   color: #798797;
@@ -1104,48 +1115,30 @@
   scrollbar-color: #504364 transparent;
 }
 
-/* 地图中心风羽标记（公开气象风速/来向，不拦截鼠标） */
-.geo-wind {
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 7px;
-  border: 1px solid #9a86c254;
-  border-radius: 4px;
-  background: #0b1118d9;
-  color: #cfc3ea;
-  font: 7px var(--mono);
+.perception-card.compact:after {
+  display: none;
+}
+.perception-card.compact {
+  width: 82px;
+  padding-inline: 5px;
+}
+.perception-card.compact .mission-card-top > span {
+  font-size: 8px;
+  gap: 0;
   white-space: nowrap;
-  box-shadow: 0 0 20px #6d5b9c33;
 }
-.geo-wind[hidden] {
-  display: none !important;
+.perception-card.compact .mission-card-top > span > svg,
+.perception-card.compact .mission-card-top small {
+  display: none;
 }
-.geo-wind-arrow {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  color: #b8a6ea;
-  background: #b59ad812;
-  border: 1px solid #9a86c23d;
-  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.geo-wind b {
-  font: 9px var(--mono);
-  color: #e3dcf5;
-}
-.geo-wind small {
-  font-size: 6px;
-  color: #8f86a6;
+.perception-card.compact .icon-button {
+  width: 20px;
 }
 
 /* 任务区气象 HUD（玻璃拟态、可折叠） */
 .weather-hud {
   position: absolute;
-  right: 96px;
+  right: 112px;
   left: auto;
   bottom: 86px;
   z-index: 4;
@@ -1154,11 +1147,80 @@
   border-radius: 7px;
   border-color: #455562;
   background: linear-gradient(160deg, #141c26f2, #0a1017f7);
-  box-shadow: 0 16px 34px #0006, inset 0 1px #ffffff08;
+  box-shadow:
+    0 16px 34px #0006,
+    inset 0 1px #ffffff08;
   animation: panel-in 0.4s ease-out;
 }
 .weather-hud.collapsed {
   width: 194px;
+}
+.weather-layer-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+.weather-point {
+  margin-top: 7px;
+  padding: 6px 0;
+  border-block: 1px solid #50656b44;
+  font-size: 10px;
+  color: #d0dfdf;
+}
+.weather-point > span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.weather-point small,
+.weather-layer-key small {
+  display: block;
+  color: #a0b6bc;
+  font: 9px var(--mono);
+}
+.weather-layer-key button {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 5px;
+  border: 1px solid #49787077;
+  border-radius: 4px;
+  color: #b9e1d7;
+  background: #69b9a010;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.weather-layer-key button:hover {
+  background: #69b9a032;
+}
+.weather-layer-key {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #50656b55;
+  font-size: 10px;
+  color: #cce8e1;
+}
+.weather-layer-heading span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.weather-wind-scale {
+  height: 5px;
+  border-radius: 2px;
+}
+.weather-wind-ticks {
+  display: grid;
+  grid-template-columns: 20% 20% 30% 11% 19%;
+  color: #c0d3d5;
+  font: 9px var(--mono);
+}
+.weather-wind-ticks span:last-child {
+  text-align: right;
 }
 .weather-hud-head {
   display: flex;
@@ -1302,28 +1364,6 @@
   color: #74828f;
   margin-left: 1px;
 }
-.weather-radar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-top: 7px;
-  padding: 5px 7px;
-  border-radius: 4px;
-  border: 1px dashed #6d5b9c3d;
-  background: #b59ad80a;
-  font-size: 8px;
-  color: #b0a2cd;
-}
-.weather-radar-row span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.weather-radar-row strong {
-  font: normal 8px var(--mono);
-  color: #cbbfed;
-}
 .weather-stale {
   display: flex;
   align-items: center;
@@ -1382,7 +1422,7 @@
 @media (max-height: 760px) {
   .weather-hud {
     width: 212px;
-    right: 92px;
+    right: 110px;
     left: auto;
     bottom: 78px;
     padding: 8px 9px 7px;
@@ -1394,22 +1434,25 @@
     max-width: 160px;
   }
 }
-/* 窄屏优先保证既有图层/底图控件不被遮挡 */
 @media (max-width: 1000px) {
   .weather-hud {
-    display: none;
+    right: 52px;
+    bottom: 110px;
+  }
+  .weather-hud:not(.collapsed) {
+    bottom: 52px;
+    max-height: calc(100% - 170px);
+    overflow: auto;
   }
 }
 .motion-reduced .weather-hud,
-.motion-reduced .weather-wind-arrow,
-.motion-reduced .geo-wind-arrow {
+.motion-reduced .weather-wind-arrow {
   animation: none !important;
   transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .weather-hud,
-  .weather-wind-arrow,
-  .geo-wind-arrow {
+  .weather-wind-arrow {
     animation: none !important;
     transition: none !important;
   }

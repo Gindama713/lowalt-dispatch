@@ -9,11 +9,22 @@
  * 未处理的 Promise rejection。
  */
 
+import type { LngLat } from "./geo";
+
 const WEATHER_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
 const RADAR_ENDPOINT = "https://api.rainviewer.com/public/weather-maps.json";
 const REQUEST_TIMEOUT_MS = 9000;
-const RADAR_FRAME_LIMIT = 3;
 const FALLBACK_RADAR_HOST = "https://tilecache.rainviewer.com";
+export const WEATHER_REFRESH_MS = 15 * 60 * 1000;
+export const RADAR_TILE_ZOOM = 7;
+// Shanghai and the surrounding Yangtze River Delta. CMA GRAPES has a 0.125° model grid.
+export const WIND_REGION = {
+  west: 117.5,
+  east: 125.5,
+  south: 28.25,
+  north: 34.25,
+};
+const WIND_GRID_SIZE = 11;
 
 export type WeatherSnapshot = {
   temperatureC: number | null;
@@ -24,29 +35,18 @@ export type WeatherSnapshot = {
   precipMm: number | null;
   visibilityM: number | null;
   code: number | null;
-  /** 抓取时间（ISO 8601）。HUD 展示为本地时间。 */
-  updatedAt: string;
-  latitude: number;
-  longitude: number;
+  validAt: string;
 };
 
 export type RadarFrame = {
-  /** RainViewer 帧路径，例如 "/v2/radar/1699999999"。 */
-  path: string;
-  /** 帧时间（Unix 秒）。 */
   time: number;
-  /** 本地时间标签，例如 "13:20"。 */
-  label: string;
-  /** 已拼好的栅格瓦片模板（含 {z}/{x}/{y}）。 */
   tiles: string;
+  host: string;
 };
 
-export type RadarFrames = {
-  host: string;
-  frames: RadarFrame[];
-  /** 最新（当前）帧索引。 */
-  currentIndex: number;
-  updatedAt: string;
+export type WindField = {
+  validAt: string;
+  vectors: [east: number, north: number][];
 };
 
 type OpenMeteoCore = {
@@ -62,6 +62,7 @@ type OpenMeteoCore = {
 };
 
 type OpenMeteoResponse = {
+  location_id?: number;
   current?: OpenMeteoCore;
   current_units?: Record<string, string | undefined>;
   hourly?: { time?: string[]; visibility?: (number | null)[] };
@@ -89,10 +90,7 @@ async function requestJson<T>(
   signal?: AbortSignal,
 ): Promise<T> {
   const controller = new AbortController();
-  const timer = window.setTimeout(
-    () => controller.abort(),
-    REQUEST_TIMEOUT_MS,
-  );
+  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const forwardAbort = () => controller.abort();
   if (signal) {
     if (signal.aborted) controller.abort();
@@ -103,8 +101,7 @@ async function requestJson<T>(
       signal: controller.signal,
       headers: { Accept: "application/json" },
     });
-    if (!response.ok)
-      throw new Error(`${label}返回 HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`${label}返回 HTTP ${response.status}`);
     return (await response.json()) as T;
   } catch (error) {
     if (signal?.aborted) throw new Error(`${label}请求已取消`);
@@ -181,7 +178,7 @@ export async function fetchWeather(
     current:
       "temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,precipitation,weather_code",
     hourly: "visibility",
-    timezone: "auto",
+    timezone: "GMT",
     forecast_days: "1",
   });
   const data = await requestJson<OpenMeteoResponse>(
@@ -190,44 +187,100 @@ export async function fetchWeather(
     signal,
   );
   const current = data.current;
-  if (!current || typeof current !== "object")
+  const validTime = Date.parse(`${current?.time}Z`);
+  if (!current || !Number.isFinite(validTime))
     throw new Error("气象服务返回数据不完整");
   const windUnit = data.current_units?.wind_speed_10m;
   const gustUnit = data.current_units?.wind_gusts_10m;
   return {
     temperatureC: round(finiteOrNull(current.temperature_2m)),
-    windSpeedMs: round(speedToMs(finiteOrNull(current.wind_speed_10m), windUnit)),
+    windSpeedMs: round(
+      speedToMs(finiteOrNull(current.wind_speed_10m), windUnit),
+    ),
     windDirDeg: round(finiteOrNull(current.wind_direction_10m), 0),
     gustMs: round(speedToMs(finiteOrNull(current.wind_gusts_10m), gustUnit)),
     cloudPct: round(finiteOrNull(current.cloud_cover), 0),
     precipMm: round(finiteOrNull(current.precipitation), 2),
     visibilityM: round(pickVisibility(data), 0),
     code: round(finiteOrNull(current.weather_code), 0),
-    updatedAt: new Date().toISOString(),
-    latitude: lat,
-    longitude: lng,
+    validAt: new Date(validTime).toISOString(),
   };
 }
 
-const frameLabel = (time: number) => {
-  try {
-    return new Date(time * 1000).toLocaleTimeString("zh-CN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return "--:--";
-  }
-};
+export async function fetchWindField(signal: AbortSignal): Promise<WindField> {
+  const { west, east, south, north } = WIND_REGION;
+  const points = Array.from({ length: WIND_GRID_SIZE ** 2 }, (_, i) => [
+    west + ((i % WIND_GRID_SIZE) * (east - west)) / (WIND_GRID_SIZE - 1),
+    south +
+      (Math.floor(i / WIND_GRID_SIZE) * (north - south)) / (WIND_GRID_SIZE - 1),
+  ]);
+  const params = new URLSearchParams({
+    latitude: points.map((p) => p[1]).join(","),
+    longitude: points.map((p) => p[0]).join(","),
+    models: "cma_grapes_global",
+    current: "wind_speed_10m,wind_direction_10m",
+    wind_speed_unit: "ms",
+    timezone: "GMT",
+    cell_selection: "nearest",
+  });
+  const data = await requestJson<OpenMeteoResponse[]>(
+    `${WEATHER_ENDPOINT}?${params}`,
+    "区域风场",
+    signal,
+  );
+  if (!Array.isArray(data) || data.length !== points.length)
+    throw new Error("区域风场返回网格不完整");
+  const time = data[0]?.current?.time;
+  const validTime = Date.parse(`${time}Z`);
+  if (!Number.isFinite(validTime)) throw new Error("区域风场缺少有效时间");
+  const vectors: WindField["vectors"] = new Array(points.length);
+  data.forEach((sample, i) => {
+    const id = sample?.location_id ?? i;
+    const speed = finiteOrNull(sample?.current?.wind_speed_10m);
+    const direction = finiteOrNull(sample?.current?.wind_direction_10m);
+    if (
+      !Number.isInteger(id) ||
+      id < 0 ||
+      id >= points.length ||
+      vectors[id] ||
+      sample?.current?.time !== time ||
+      speed === null ||
+      speed < 0 ||
+      direction === null
+    )
+      throw new Error("区域风场返回网格不完整");
+    // Meteorological direction is where the wind comes from. Draw where it goes.
+    const radians = (direction * Math.PI) / 180;
+    vectors[id] = [-speed * Math.sin(radians), -speed * Math.cos(radians)];
+  });
+  return { validAt: new Date(validTime).toISOString(), vectors };
+}
 
-/**
- * 获取 RainViewer 最近 2–3 帧雷达拼图瓦片模板。
- * 返回最新帧索引，方便 UI 以“当前帧”作为默认展示。
- */
-export async function fetchRadarFrames(
+export function sampleWind(
+  field: WindField,
+  [lng, lat]: LngLat,
+): [number, number] | null {
+  const { west, east, south, north } = WIND_REGION;
+  if (lng < west || lng > east || lat < south || lat > north) return null;
+  const x = ((lng - west) / (east - west)) * (WIND_GRID_SIZE - 1);
+  const y = ((lat - south) / (north - south)) * (WIND_GRID_SIZE - 1);
+  const col = Math.min(Math.floor(x), WIND_GRID_SIZE - 2);
+  const row = Math.min(Math.floor(y), WIND_GRID_SIZE - 2);
+  const i = row * WIND_GRID_SIZE + col;
+  const v = field.vectors;
+  const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+  const component = (k: 0 | 1) =>
+    mix(
+      mix(v[i][k], v[i + 1][k], x - col),
+      mix(v[i + WIND_GRID_SIZE][k], v[i + WIND_GRID_SIZE + 1][k], x - col),
+      y - row,
+    );
+  return [component(0), component(1)];
+}
+
+export async function fetchRadarFrame(
   signal?: AbortSignal,
-): Promise<RadarFrames> {
+): Promise<RadarFrame> {
   const data = await requestJson<RainViewerResponse>(
     RADAR_ENDPOINT,
     "雷达服务",
@@ -241,23 +294,61 @@ export async function fetchRadarFrames(
       typeof frame.path === "string" &&
       frame.path.startsWith("/"),
   );
-  if (!usable.length) throw new Error("雷达服务暂无可用帧");
+  const latest = usable.reduce<(typeof usable)[number] | undefined>(
+    (best, frame) => (!best || frame.time > best.time ? frame : best),
+    undefined,
+  );
+  if (!latest) throw new Error("雷达服务暂无可用帧");
   const host =
     typeof data.host === "string" && data.host.startsWith("http")
       ? data.host.replace(/\/+$/, "")
       : FALLBACK_RADAR_HOST;
-  const frames = usable.slice(-RADAR_FRAME_LIMIT).map<RadarFrame>((frame) => ({
-    path: frame.path,
-    time: frame.time,
-    label: frameLabel(frame.time),
-    tiles: `${host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`,
-  }));
   return {
     host,
-    frames,
-    currentIndex: frames.length - 1,
-    updatedAt: new Date().toISOString(),
+    time: latest.time,
+    tiles: `${host}${latest.path}/256/{z}/{x}/{y}/2/1_1.png`,
   };
+}
+
+export async function hasRadarCoverage(
+  host: string,
+  [lng, lat]: LngLat,
+  signal: AbortSignal,
+) {
+  const size = 2 ** RADAR_TILE_ZOOM;
+  const x = (((lng + 180) / 360) * size + size) % size;
+  const radians = (Math.max(-85, Math.min(85, lat)) * Math.PI) / 180;
+  const y = ((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2) * size;
+  const response = await fetch(
+    `${host}/v2/coverage/0/256/${RADAR_TILE_ZOOM}/${Math.floor(x)}/${Math.floor(y)}/0/0_0.png`,
+    {
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ]),
+    },
+  );
+  if (!response.ok) throw new Error("无法确认雷达覆盖");
+  const bitmap = await createImageBitmap(await response.blob());
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(
+      bitmap,
+      Math.floor((x % 1) * bitmap.width),
+      Math.floor((y % 1) * bitmap.height),
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+    );
+    return ctx.getImageData(0, 0, 1, 1).data[3] < 128;
+  } finally {
+    bitmap.close();
+  }
 }
 
 const WIND_DIRECTIONS = [

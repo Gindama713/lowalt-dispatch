@@ -7,6 +7,7 @@ import {
 } from "react";
 import * as maplibregl from "maplibre-gl";
 import {
+  type CanvasSource,
   type GeoJSONSource,
   type RasterTileSource,
   type StyleSpecification,
@@ -16,7 +17,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { GRID, GRID_STEP, pointAlong, TerrainModel } from "./terrain";
-import { windDirectionLabel } from "./weather";
+import { RADAR_TILE_ZOOM, WIND_REGION, type WindField } from "./weather";
+import { createWindLayer, WIND_MAX_ZOOM } from "./WindLayer";
 import {
   enuToLngLat,
   type GeoMission,
@@ -78,15 +80,13 @@ export type GeoMapHandle = {
   zoom: (factor: number) => void;
   focus: (point: Point) => void;
   flyTo: (point: LngLat) => void;
+  showWindRegion: () => void;
   retry: () => void;
   applyTerrain: (patch: TerrainPatch) => TerrainChange;
 };
-/** 天气叠加层：雷达瓦片与场中心风羽，全部为公开数据演示。 */
 export type WeatherOverlay = {
-  radarTiles: string[] | null;
-  radarVisible: boolean;
-  radarOpacity: number;
-  wind: { speedMs: number; dirDeg: number } | null;
+  radarTiles: string | null;
+  wind: WindField | null;
 };
 export type GeoMapProps = {
   mode: ViewMode;
@@ -105,6 +105,8 @@ export type GeoMapProps = {
   preview?: { route_id: string; waypoints: Point[] } | null;
   comparison?: { id: string; waypoints: Point[] } | null;
   weather?: WeatherOverlay;
+  onWindView: (visible: boolean) => void;
+  onWindMove: (moving: boolean) => void;
   onReady: () => void;
   onError: (message: string) => void;
   onPoint: (point: LngLat) => void;
@@ -143,6 +145,22 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           duration: dynamic.current.reducedMotion ? 0 : 1100,
         }),
       flyTo: fly,
+      showWindRegion: () => {
+        // Frame the Yangtze Delta inside the wider data extent, with room to pan.
+        runtime.current?.map.fitBounds(
+          [
+            [119.2, 29.95],
+            [123.8, 32.55],
+          ],
+          {
+            padding: 32,
+            pitch: 0,
+            bearing: 0,
+            maxZoom: WIND_MAX_ZOOM - 0.5,
+            duration: dynamic.current.reducedMotion ? 0 : 900,
+          },
+        );
+      },
       focus: (point) => fly(enuToLngLat(point), 15.3),
       zoom: (factor) => {
         const m = runtime.current?.map;
@@ -174,9 +192,10 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       let satelliteFailed = false;
       let lastBasemap = dynamic.current.basemap;
       let radarTileKey = "";
-      let windKey = "";
-      let windSignature = "";
-      let radarOpacityCache = -1;
+      let windData: WindField | null = null;
+      let windLayer: ReturnType<typeof createWindLayer> | null = null;
+      let windTimer = 0;
+      let windView = false;
       let glowOpacityCache = -1;
       const visibilityCache = new Map<string, string>();
       let draw: (() => void) | undefined;
@@ -226,6 +245,37 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       map.on("click", (e) =>
         dynamic.current.onPoint([e.lngLat.wrap().lng, e.lngLat.lat]),
       );
+      const updateWindView = () => {
+        const bounds = map.getBounds();
+        const center = map.getCenter();
+        const offset = center.lng - center.wrap().lng;
+        const next =
+          map.getZoom() < WIND_MAX_ZOOM &&
+          bounds.getEast() - offset >= WIND_REGION.west &&
+          bounds.getWest() - offset <= WIND_REGION.east &&
+          bounds.getNorth() >= WIND_REGION.south &&
+          bounds.getSouth() <= WIND_REGION.north;
+        if (windView !== next) {
+          windView = next;
+          dynamic.current.onWindView(next);
+        }
+      };
+      map.on("movestart", () => {
+        dynamic.current.onWindMove(true);
+        syncWindAnimation(false);
+      });
+      map.on("moveend", () => {
+        dynamic.current.onWindMove(false);
+        updateWindView();
+        syncWindAnimation(true);
+      });
+      map.on("resize", updateWindView);
+      const updateWindMotion = () => syncWindAnimation(true);
+      const motionPreference = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      );
+      motionPreference.addEventListener("change", updateWindMotion);
+      document.addEventListener("visibilitychange", updateWindMotion);
       const sendReady = () => {
         if (mapReady && scene && !readySent) {
           readySent = true;
@@ -298,8 +348,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         );
         // 卫星影像偏亮，演示航线提高发光强度保持可读性。
         if (map.getLayer("demo-route-glow")) {
-          const glow =
-            dynamic.current.basemap === "satellite" ? 0.78 : 0.55;
+          const glow = dynamic.current.basemap === "satellite" ? 0.78 : 0.55;
           if (glow !== glowOpacityCache) {
             glowOpacityCache = glow;
             map.setPaintProperty("demo-route-glow", "line-opacity", glow);
@@ -365,25 +414,23 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       /** RainViewer 雷达拼图：固定 source，帧切换时只更新瓦片模板。 */
       function syncRadar() {
         if (disposed || !mapReady) return;
-        const overlay = dynamic.current.weather;
-        const tiles = overlay?.radarTiles ?? null;
-        const opacity = overlay?.radarOpacity ?? 0.55;
-        if (tiles?.length) {
-          const key = tiles.join("|");
+        const tiles = dynamic.current.weather?.radarTiles;
+        if (tiles) {
           const current = map.getSource("weather-radar") as
             | RasterTileSource
             | undefined;
           if (!current) {
             map.addSource("weather-radar", {
               type: "raster",
-              tiles,
+              tiles: [tiles],
               tileSize: 256,
+              maxzoom: RADAR_TILE_ZOOM,
               attribution: "RainViewer · 公开雷达拼图",
             });
-            radarTileKey = key;
-          } else if (key !== radarTileKey) {
-            current.setTiles(tiles);
-            radarTileKey = key;
+            radarTileKey = tiles;
+          } else if (tiles !== radarTileKey && !map.isMoving()) {
+            current.setTiles([tiles]);
+            radarTileKey = tiles;
           }
           if (!map.getLayer("weather-radar-layer")) {
             map.addLayer({
@@ -391,56 +438,91 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
               type: "raster",
               source: "weather-radar",
               paint: {
-                "raster-opacity": opacity,
+                "raster-opacity": 0.46,
                 "raster-fade-duration": 240,
               },
             });
             addBelowDemo("weather-radar-layer");
           }
-          if (opacity !== radarOpacityCache) {
-            radarOpacityCache = opacity;
-            map.setPaintProperty(
-              "weather-radar-layer",
-              "raster-opacity",
-              opacity,
-            );
-          }
-          setLayerVisibility(
-            "weather-radar-layer",
-            Boolean(overlay?.radarVisible),
-          );
           return;
         }
         if (map.getLayer("weather-radar-layer"))
           map.removeLayer("weather-radar-layer");
         if (map.getSource("weather-radar")) map.removeSource("weather-radar");
-        visibilityCache.delete("weather-radar-layer");
         radarTileKey = "";
       }
-      /** 地图中心风羽：箭头按来向旋转，文本为公开气象风速。 */
+      function syncWindAnimation(allow: boolean) {
+        const p = dynamic.current;
+        const canAnimate =
+          allow &&
+          Boolean(p.weather?.wind && windLayer && windView) &&
+          p.mode === "2d" &&
+          p.basemap === "dark" &&
+          !p.realTerrain &&
+          !p.reducedMotion &&
+          !motionPreference.matches &&
+          !document.hidden &&
+          !map.isMoving();
+        if (Boolean(windTimer) === canAnimate) return;
+        const paint = (elapsed?: number) => {
+          const source = map.getSource("weather-wind") as
+            | CanvasSource
+            | undefined;
+          if (!source || !windLayer) return;
+          windLayer.draw(elapsed);
+          // Update the texture once and leave the MapLibre render loop idle between frames.
+          source.play();
+          source.pause();
+        };
+        if (canAnimate) {
+          const start = performance.now();
+          windTimer = window.setInterval(
+            () => paint((performance.now() - start) / 1000),
+            1000 / 24,
+          );
+        } else {
+          window.clearInterval(windTimer);
+          windTimer = 0;
+          paint();
+        }
+      }
       function syncWind() {
-        if (!mapReady) {
-          windEl.hidden = true;
-          return;
+        const field = dynamic.current.weather?.wind ?? null;
+        if (field && field !== windData && map.isMoving()) return;
+        const installed = map.getSource("weather-wind");
+        if (field !== windData || Boolean(installed) !== Boolean(field)) {
+          syncWindAnimation(false);
+          if (map.getLayer("weather-wind-layer"))
+            map.removeLayer("weather-wind-layer");
+          if (installed) map.removeSource("weather-wind");
+          if (field !== windData) {
+            windLayer = field ? createWindLayer(field) : null;
+            windData = field;
+          }
+          if (windLayer) {
+            const { west, east, south, north } = WIND_REGION;
+            map.addSource("weather-wind", {
+              type: "canvas",
+              canvas: windLayer.canvas,
+              animate: false,
+              coordinates: [
+                [west, north],
+                [east, north],
+                [east, south],
+                [west, south],
+              ],
+            });
+            map.addLayer({
+              id: "weather-wind-layer",
+              type: "raster",
+              source: "weather-wind",
+              maxzoom: WIND_MAX_ZOOM,
+              paint: { "raster-fade-duration": 0 },
+            });
+            addBelowDemo("weather-wind-layer");
+          }
         }
-        const wind = dynamic.current.weather?.wind ?? null;
-        if (!wind || !Number.isFinite(wind.speedMs) || !Number.isFinite(wind.dirDeg)) {
-          windEl.hidden = true;
-          return;
-        }
-        windEl.hidden = false;
-        const center = map.getCenter();
-        const key = `${center.lng.toFixed(5)},${center.lat.toFixed(5)}`;
-        if (key !== windKey) {
-          windKey = key;
-          windMarker.setLngLat(center);
-        }
-        const signature = `${wind.speedMs.toFixed(1)}|${wind.dirDeg.toFixed(0)}`;
-        if (signature !== windSignature) {
-          windSignature = signature;
-          windArrow.style.transform = `rotate(${wind.dirDeg}deg)`;
-          windText.textContent = `${wind.speedMs.toFixed(1)} m/s · ${windDirectionLabel(wind.dirDeg)}来向`;
-        }
+        syncWindAnimation(true);
       }
       function syncOverlays() {
         if (disposed || !mapReady) return;
@@ -704,20 +786,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       const drone = new maplibregl.Marker({ element: droneEl })
         .setLngLat(enuToLngLat([150, 150]))
         .addTo(map);
-      // 风羽固定在地图中心，随地图平移更新位置；不拦截鼠标事件。
-      const windEl = document.createElement("div");
-      windEl.className = "geo-wind";
-      windEl.innerHTML =
-        '<span class="geo-wind-arrow" aria-hidden="true">↑</span><b></b><small>风羽 · 公开气象</small>';
-      const windArrow = windEl.querySelector<HTMLElement>(".geo-wind-arrow")!;
-      const windText = windEl.querySelector<HTMLElement>("b")!;
-      windEl.hidden = true;
-      const windMarker = new maplibregl.Marker({
-        element: windEl,
-        anchor: "center",
-      })
-        .setLngLat(map.getCenter())
-        .addTo(map);
       let lastProgress = -1,
         lastPreview = "",
         lastComparison = "",
@@ -866,12 +934,12 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             ),
           );
         }
-
       };
       runtime.current = { map, update: updateTerrain, reload, scene };
       map.on("load", () => {
         mapReady = true;
         install();
+        updateWindView();
       });
       map.on("style.load", () => {
         mapReady = true;
@@ -883,8 +951,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         terrainFailed = false;
         satelliteFailed = false;
         radarTileKey = "";
-        windKey = "";
-        radarOpacityCache = -1;
         glowOpacityCache = -1;
         visibilityCache.clear();
         install();
@@ -900,7 +966,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           }
           return;
         }
-        if (sourceId === "weather-radar") return;
+        if (sourceId?.startsWith("weather-")) return;
         if (
           sourceId &&
           !sourceId.startsWith("demo-") &&
@@ -932,7 +998,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           }
           return;
         }
-        if (sourceId === "weather-radar") return;
+        if (sourceId?.startsWith("weather-")) return;
         if (sourceId === "global-dem") {
           terrainFailed = true;
           map.setTerrain(null);
@@ -988,7 +1054,11 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         pins.forEach((p) => p.remove());
         labels.forEach((p) => p.marker.remove());
         drone.remove();
-        windMarker.remove();
+        window.clearInterval(windTimer);
+        dynamic.current.onWindMove(false);
+        if (windView) dynamic.current.onWindView(false);
+        motionPreference.removeEventListener("change", updateWindMotion);
+        document.removeEventListener("visibilitychange", updateWindMotion);
         map.remove();
         runtime.current = null;
       };
