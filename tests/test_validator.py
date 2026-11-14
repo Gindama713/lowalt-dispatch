@@ -217,3 +217,51 @@ def test_waypoint_reference_mismatch_raises(scene, suite) -> None:
     broken.waypoints = [task.origin.model_copy(update={"frame": "wgs84", "x_m": None, "y_m": None, "lat_deg": 28.0, "lon_deg": 115.0})] + list(route.waypoints[1:])
     with pytest.raises(ValueError, match="ENU"):
         validate_route(broken, task, snapshot, scene, profile=TOY, now=T0)
+
+
+# --------------------------------------------------------------------------- #
+# 备降可达距离的尺子（2026-11-15 修掉的口径错误）
+# --------------------------------------------------------------------------- #
+def test_escape_distance_never_uses_straight_line_through_wall() -> None:
+    """备降距离必须绕开建筑，不能用欧氏直线。
+
+    旧实现拿 min(hypot(采样点, 备降点)) 算退出路径，等于默认可以穿墙飞过去，
+    会系统性低估备降能耗、把不安全的航线判成安全。这两条断言锁住修复。
+    """
+    from core.geometry import rect_polygon
+    from validator.escape import EscapeSite, build_escape_field
+
+    wall = rect_polygon(980.0, 0.0, 1020.0, 1400.0)  # 竖墙，缺口在 y > 1400
+    site = EscapeSite("L-test", 2000.0, 700.0, 30.0)
+    field = build_escape_field([wall], [site])
+
+    dist_m, idx = field.lookup(500.0, 700.0)
+    assert idx >= 0, "墙上方有缺口，应该存在绕行的退出路径"
+    assert dist_m > 1500.0, f"距离 {dist_m:.0f} m 不应短于穿墙直线 1500 m"
+
+    sealed = build_escape_field([rect_polygon(980.0, 0.0, 1020.0, 3000.0)], [site])
+    assert sealed.lookup(500.0, 700.0)[1] == -1, "完全隔断时不得给出可达距离"
+
+
+def test_grid_constants_are_shared_between_planner_and_validator() -> None:
+    """栅格分辨率与净空只能有一份定义，否则两边的尺子又会悄悄分叉。"""
+    from core.geometry import GRID_CLEARANCE_M, GRID_RES_M
+    from planner.grid import DEFAULT_CLEARANCE_M, DEFAULT_RES_M
+    from validator import escape
+
+    assert DEFAULT_RES_M == GRID_RES_M == escape.GRID_RES_M
+    assert DEFAULT_CLEARANCE_M == GRID_CLEARANCE_M == escape.GRID_CLEARANCE_M
+
+
+def test_missing_enu_coordinates_do_not_become_origin(scene, suite) -> None:
+    """备降点缺 ENU 坐标时不能当成 (0, 0) 凭空造一条退出路径。"""
+    task, snapshot, route = _build(suite["S1-01"], scene)
+    broken_snapshot = snapshot.model_copy(deep=True)
+    for site in broken_snapshot.landing_sites:
+        site.position = site.position.model_copy(
+            update={"frame": "wgs84", "x_m": None, "y_m": None, "lat_deg": 28.0, "lon_deg": 115.0}
+        )
+    report = validate_route(route, task, broken_snapshot, scene, profile=TOY, now=T0)
+    diversion = _check(report, "diversion_reachability")
+    assert not diversion.passed
+    assert "缺少 ENU 坐标" in diversion.detail or "几何可达" in diversion.detail

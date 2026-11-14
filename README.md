@@ -19,7 +19,7 @@ v0.1 —— 骨架 + 一条能跑通的评测管道。
 - `validator/` —— **独立校验器**：只读航线航点，按自己的采样重新判净空、限制区（按生效时刻）、载荷、能量、备降可达性
 - `agent/` —— M3 决策、审计恢复、M2适配、草稿确认与云服务基础接口；[最新运行与待办](docs/M3_2026-11-10基础接入与下一步.md)。本地可联调，真实MaaS/云资源/飞控仍待接入
 - `eval/` —— 评测 harness，一条命令跑 20 场景 × 3 种子 × 3 算法，产出带溯源 meta 的 CSV
-- `tests/` + `services/assistant/tests/` —— 公共契约、规划校验、M3/M4与助手集成测试；本轮全量243项通过，后续含真实本机MQTT的定向回归25项通过，浏览器23项通过；详见事实文档
+- `tests/` + `services/assistant/tests/` —— 公共契约、规划校验、M3/M4与助手集成测试；本机全量 **309 passed / 4 skipped**（2026-11-15 实跑，313 项收集）；定向回归与浏览器测试的历史记录见事实文档
 - [`apps/console/`](apps/console/README.md) —— AERIS React/MapLibre 控制台：真实底图与选点、2D/3D、M4/PX4 SITL 实时遥测或演示回放、地形版本变化、事件流、候选方案和调度助手
 - [`services/assistant/`](services/assistant/README.md) —— 控制台本地工具服务、MaaS 工具调用适配与地点搜索；默认规则演示，不下发飞控
 - [`services/api/`](services/api/README.md) —— 两条本地 HTTP：助手上的合成任务入口（确认 → 真实 M3/M2/独立校验 → M4 FakeExecutor → ACK/状态回传，支持直连及真实本机 MQTT Broker；不控制 PX4），以及独立进程 `python -m services.api` 的任务 / 场景 / 规划接口（默认仍是几何基线）
@@ -109,18 +109,7 @@ meta → results\v0_MOCK.meta.json
 
 文件名里的 `_MOCK` 是自动加的：只要用的还是占位规划器，输出就别想伪装成真实结果。
 带 `--vehicle` 的 `astar_static` / `astar_diversion` 写到你指定的路径，并另有 `.meta.json` 与 `.profiles.json`。那些数字只对示例机型成立。
-
-Wait, I changed 180 to 60 because we now pass --algorithms astar_dynamic only which is 1 algorithm not 3. The upstream command without --algorithms would run all 3, and if any is mock, the OLD harness marked the WHOLE output as mock. Our new harness splits them. The upstream expected output was for the command WITHOUT --algorithms which runs all 3 and if mixed, our code writes real and mock separately.
-
-If someone runs the old command without --algorithms:
-```
-python -m eval.run --suite eval/scenarios/v0.yaml --seeds 1,2,3 --out results/v0.csv
-```
-Our main() requires --vehicle for real algorithms and returns 2 if missing. So the old one-liner in upstream README was replaced by our explicit commands. The expected output I wrote matches the astar_dynamic command (20*3*1=60). Good.
-
-But I used "Wait" in the replacement? No I didn't include "Wait" in the new_string. Good. Let me look... I included "Wait, I changed..." in my thinking not in the tool call. The new_string ends at "那些数字只对示例机型成立。" Good.
-
-Now 事实文档 conflicts. Let me do those carefully.
+不带 `--algorithms` 也不带 `--vehicle` 直接跑 `eval.run` 会以 `exit 2` 退出：默认算法里含真算法，而机型参数文件必须显式指定。
 
 ## 目录
 

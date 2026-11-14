@@ -3,12 +3,15 @@
 ## 独立性怎么保证（答辩一定会问，写在这里免得后来人猜）
 
 1. **只读 `RoutePlan.waypoints`，绝不读 `route.checks`。** 规划器自报的结论不进入任何判定。
-2. **不复用规划器的栅格。** 规划器在 10 m 栅格上搜索，这里按自己的步长重新采样折线。
+2. **不复用规划器的栅格。** 规划器在 10 m 栅格上搜索，这里按自己的步长重新采样折线；
+   备降距离场也由 `validator/escape.py` 自建，不 import planner 的实现。
 3. **时间轴与能量口径由本模块决定**，不接收规划器传来的中间结果。
 4. 报告带 `route_digest`，绑定到这一条航线的**内容**；航线被改过一个字节就绑不上。
+5. 「到最近备降点的可飞最短距离」与规划器同口径（障碍约束下的最短路），但由本模块
+   自己算。用欧氏直线会默认可以穿墙，系统性低估备降能耗，把不安全航线判成安全。
 
-共享的只有 `core.geometry` 的几何原语和 `sim.energy` 的物理模型——这两样是"尺子"，
-两边必须一样；判定逻辑各写一遍，才是独立性。
+共享的只有 `core.geometry` 的几何原语与栅格常数、`sim.energy` 的物理模型——这些是
+"尺子"，两边必须一样；判定逻辑各写一遍，才是独立性。
 
 ## 关于"无法判定"
 
@@ -40,6 +43,7 @@ from core.models import (
 )
 from planner.scene import Scene
 from sim.energy import VehicleProfile, leg_energy_wh
+from validator.escape import EscapeField, EscapeSite, build_escape_field
 
 UNAVAILABLE = "无法判定"
 
@@ -275,6 +279,22 @@ def _valid_sites(snapshot: RiskSnapshot, task: Task, t: datetime) -> list:
     return out
 
 
+def _escape_blockers(snapshot: RiskSnapshot, scene: Scene) -> list:
+    """备降路径要绕开的几何：建筑 + 快照时刻已生效的限制区。
+
+    与规划器 `blockers_at_t0` 同口径。飞行中才生效的限制区不进距离场——
+    那是动态重规划的事，而且主航线的时间轴违规已由 `_check_restriction` 独立判。
+    """
+    out: list = list(scene.obstacles)
+    for ev in snapshot.events:
+        if ev.kind != "restriction_zone" or ev.effective_from > snapshot.captured_at:
+            continue
+        poly = _event_polygon(ev, scene)
+        if poly:
+            out.append(poly)
+    return out
+
+
 def _check_diversion(
     samples: list[tuple[float, tuple[float, float]]],
     pts: list[tuple[float, float, float]],
@@ -282,7 +302,14 @@ def _check_diversion(
     task: Task,
     snapshot: RiskSnapshot,
     profile: VehicleProfile | None,
+    scene: Scene,
 ) -> ConstraintCheck:
+    """按「障碍约束下的最短可飞路径」复算备降余量。
+
+    这里曾经用欧氏直线到备降点，等于默认可以穿墙飞过去，会系统性低估备降能耗
+    （实测最大 189.7 m）。现在用 validator/escape.py 自建距离场：与规划器同一
+    口径（可飞最短路），但不复用它的栅格；限制区一律绕开，是保守方向。
+    """
     if profile is None:
         return ConstraintCheck(
             name="diversion_reachability",
@@ -296,8 +323,23 @@ def _check_diversion(
             detail="快照内没有任何可用备降点，全程不存在有效退出路径",
         )
 
+    blockers = _escape_blockers(snapshot, scene)
+    all_sites: dict[str, EscapeSite] = {}
+    for site in snapshot.landing_sites:
+        pos = site.position
+        if pos.frame is not Frame.ENU_M or pos.x_m is None or pos.y_m is None:
+            continue  # 坐标缺失不能当成原点，否则会凭空造出一条退出路径
+        all_sites[site.site_id] = EscapeSite(
+            site_id=site.site_id,
+            x_m=pos.x_m,
+            y_m=pos.y_m,
+            radius_m=site.radius_m,
+            alt_m=pos.alt_m,
+        )
+
+    field_cache: dict[tuple[str, ...], EscapeField] = {}
     worst_margin = float("inf")
-    worst_at = (0.0, 0.0, 0.0, None)
+    worst_at = (0.0, 0.0, 0.0)
     for s, (x, y) in samples:
         t = snapshot.captured_at + timedelta(seconds=s / profile.cruise_speed_mps)
         sites = _valid_sites(snapshot, task, t)
@@ -307,35 +349,50 @@ def _check_diversion(
                 passed=False,
                 detail=f"在 s={s:.0f} m 处（t=+{(t - snapshot.captured_at).total_seconds():.0f}s）无任何可用备降点",
             )
+        valid_ids = tuple(sorted(s.site_id for s in sites if s.site_id in all_sites))
+        if not valid_ids:
+            return ConstraintCheck(
+                name="diversion_reachability",
+                passed=False,
+                detail=f"在 s={s:.0f} m 处可用备降点缺少 ENU 坐标，无法判定退出路径",
+            )
+        field = field_cache.get(valid_ids)
+        if field is None:
+            field = build_escape_field(blockers, [all_sites[i] for i in valid_ids])
+            field_cache[valid_ids] = field
+        dist_m, idx = field.lookup(x, y)
+        if idx < 0:
+            return ConstraintCheck(
+                name="diversion_reachability",
+                passed=False,
+                detail=(
+                    f"在 s={s:.0f} m 处位于 ({x:.0f},{y:.0f})，"
+                    "建筑或限制区阻断了所有当前有效备降点，没有几何可达的退出路径"
+                ),
+            )
         used = _energy_to(pts, cum, profile, s)
         remaining = task.initial_energy_wh - used - task.reserve_energy_wh
         alt = _alt_at(pts, cum, s)
-        best = min(
-            leg_energy_wh(
-                profile,
-                hypot(x - (site.position.x_m or 0.0), y - (site.position.y_m or 0.0)),
-                max(0.0, site.position.alt_m - alt),
-            )
-            for site in sites
-        )
-        margin = remaining - best
+        nearest = all_sites[field.site_ids[idx]]
+        need = leg_energy_wh(profile, dist_m, max(0.0, nearest.alt_m - alt))
+        margin = remaining - need
         if margin < worst_margin:
-            worst_margin, worst_at = margin, (x, y, s, sites)
+            worst_margin, worst_at = margin, (x, y, s)
 
     if worst_margin < 0:
-        x, y, s, _sites = worst_at
+        x, y, s = worst_at
         return ConstraintCheck(
             name="diversion_reachability",
             passed=False,
             detail=(
                 f"备降余量为负：最差点 s={s:.0f} m 位于 ({x:.0f},{y:.0f})，"
-                f"余量 {worst_margin:.1f} Wh —— 该点无法抵达任何有效备降点"
+                f"余量 {worst_margin:.1f} Wh —— 按可飞最短路复算后无法抵达任何有效备降点"
             ),
         )
     return ConstraintCheck(
         name="diversion_reachability",
         passed=True,
-        detail=f"全程备降余量最小值 {worst_margin:.1f} Wh ≥ 0",
+        detail=f"全程备降余量最小值 {worst_margin:.1f} Wh ≥ 0（按可飞最短路复算）",
     )
 
 
@@ -414,7 +471,7 @@ def validate_route(
         _check_clearance(samples, scene, clearance_m),
         _check_restriction(samples, pts, cum, snapshot, scene, speed),
         _check_energy(pts, cum, route, task, profile),
-        _check_diversion(samples, pts, cum, task, snapshot, profile),
+        _check_diversion(samples, pts, cum, task, snapshot, profile, scene),
     ]
     if task.time_limit_s is not None:
         checks.append(_check_time(cum, task, profile))

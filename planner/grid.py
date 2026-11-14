@@ -22,11 +22,18 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from core.geometry import Polygon, dilate_circular, polygon_mask
+from core.geometry import (
+    GRID_BOUNDS,
+    GRID_CLEARANCE_M,
+    GRID_RES_M,
+    Polygon,
+    dilate_circular,
+    polygon_mask,
+)
 
-DEFAULT_RES_M = 10.0
-# 物理净空 20 m + 离散化裕量 10 m；理由见模块 docstring
-DEFAULT_CLEARANCE_M = 30.0
+# 保留公开常量名，值统一来自 core.geometry —— 独立校验器读的是同一组数字。
+DEFAULT_RES_M = GRID_RES_M
+DEFAULT_CLEARANCE_M = GRID_CLEARANCE_M
 
 
 @dataclass
@@ -71,10 +78,10 @@ class Grid:
 def build_grid(
     blockers: list[Polygon],
     *,
-    x0: float = 0.0,
-    y0: float = 0.0,
-    x1: float = 3000.0,
-    y1: float = 3000.0,
+    x0: float = GRID_BOUNDS[0],
+    y0: float = GRID_BOUNDS[1],
+    x1: float = GRID_BOUNDS[2],
+    y1: float = GRID_BOUNDS[3],
     res_m: float = DEFAULT_RES_M,
     clearance_m: float = DEFAULT_CLEARANCE_M,
 ) -> Grid:

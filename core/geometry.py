@@ -16,6 +16,14 @@ import numpy as np
 Point = tuple[float, float]
 Polygon = list[Point]
 
+# 栅格离散化参数。规划器与独立校验器必须共用同一组数字，否则同一段几何会
+# 被量出两个长度，校验结论就失去了可比性。
+# GRID_CLEARANCE_M = 20 m 物理净空 + 10 m 离散化裕量（半格误差 + 八邻域切角），
+# 推导见 planner/grid.py 的模块 docstring。
+GRID_RES_M = 10.0
+GRID_CLEARANCE_M = 30.0
+GRID_BOUNDS = (0.0, 0.0, 3000.0, 3000.0)  # x0, y0, x1, y1
+
 
 # --------------------------------------------------------------------------- #
 # 多边形
