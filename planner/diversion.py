@@ -18,8 +18,10 @@
    标签因此不会改变结果。
 4. 搜索检查的是到达代价再加一格对角线（`res_m * √2`）。这 1 格是端点贴格、
    对角线抄角带来的保守量，避免网格上刚过线、折线采样又变成负数。
-5. 目的地不是备降点。at_s > 0 的限制区、备降点关闭，本版都当还没发生。
-   那是动态重规划的事，`astar_dynamic` 仍是 mock。
+5. 目的地不是备降点。飞行中才关闭的备降点（`landing_site_changes` 里 `at_s > 0`
+   的 `closed`）已进入本版：搜索按到达时刻的有效备降点集合换距离场，余量剖面
+   按同样的时刻复算。at_s > 0 的限制区仍当还没发生——那是动态重规划的事，
+   `astar_dynamic` 仍是 mock。
 
 `E_left - E_reserve - E_need >= 0` 才算这个状态还能搜。
 E_need 是上面这张距离场乘单位距离能耗；没有几何可达备降点时，
@@ -30,6 +32,7 @@ from __future__ import annotations
 
 import math
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from core.geometry import polyline_length, sample_polyline
@@ -50,8 +53,8 @@ _SCENE: Scene | None = None
 APPROXIMATION_NOTE = (
     "备降路径近似：与主航线相同的占用栅格（障碍 + at_s=0 的限制区，圆形净空膨胀），"
     "八邻域最短路，进入备降半径即到达；能耗为一次爬升加无风巡航，不计转弯。"
-    "搜索比折线采样多扣一格对角线。目的地不算备降点；at_s>0 的事件不进入本版。"
-    "示例机型参数不是真实平台数据。"
+    "搜索比折线采样多扣一格对角线。目的地不算备降点；飞行中关闭的备降点按到达时刻生效，"
+    "at_s>0 的限制区仍不进入本版。示例机型参数不是真实平台数据。"
 )
 
 
@@ -159,6 +162,55 @@ def closed_site_ids_at_t0(scenario: dict) -> set[str]:
             continue
         closed.add(str(change["site_id"]))
     return closed
+
+
+def site_closure_schedule(scenario: dict) -> tuple[tuple[float, str], ...]:
+    """飞行中才关闭的备降点，按生效秒数排序。
+
+    t=0 的关闭已由 `active_landing_sites` 过滤掉，这里只处理 `at_s > 0` 的。
+    场景里的 `landing_site_changes` 是现成数据，不需要任何编造的风场或机型参数。
+    """
+    out: list[tuple[float, str]] = []
+    for change in scenario.get("landing_site_changes") or []:
+        if str(change.get("change")) != "closed":
+            continue
+        at_s = float(change.get("at_s", 0) or 0)
+        if at_s <= 0:
+            continue
+        out.append((at_s, str(change["site_id"])))
+    return tuple(sorted(out))
+
+
+def sites_available_at(
+    sites: list[LandingSite],
+    schedule: tuple[tuple[float, str], ...],
+    t_s: float,
+) -> list[LandingSite]:
+    """t_s 时刻仍有效的备降点。v0 只建模 `closed`，关闭后不恢复。"""
+    closed = {sid for at_s, sid in schedule if at_s <= t_s}
+    if not closed:
+        return sites
+    return [s for s in sites if s.site_id not in closed]
+
+
+def make_field_at(grid: Grid, sites: list[LandingSite], schedule: tuple[tuple[float, str], ...]):
+    """按到达时刻返回对应的备降距离场；该时刻无有效备降点则返回 None。
+
+    不同的有效备降点集合各建一张距离场并缓存。集合数等于关闭事件数 + 1，
+    不会随着采样点数量增长。
+    """
+    cache: dict[tuple[str, ...], DiversionField] = {}
+
+    def field_at(t_s: float) -> DiversionField | None:
+        subset = sites_available_at(sites, schedule, t_s)
+        if not subset:
+            return None
+        key = tuple(s.site_id for s in subset)
+        if key not in cache:
+            cache[key] = build_diversion_field(grid, subset)
+        return cache[key]
+
+    return field_at
 
 
 def active_landing_sites(
@@ -340,8 +392,13 @@ def profile_along_route(
     climb_delta: float,
     plan_version: str = "v1",
     sample_step_m: float = SAMPLE_STEP_M,
+    field_at: Callable[[float], DiversionField | None] | None = None,
 ) -> DiversionMarginProfile:
-    """沿折线采样。爬升能耗在 s=0 一次扣完，之后只加水平巡航。"""
+    """沿折线采样。爬升能耗在 s=0 一次扣完，之后只加水平巡航。
+
+    `field_at` 给出到达时刻 t_s 的有效备降距离场；不传则用同一张静态 `field_`。
+    两者必须与搜索阶段用同一套，否则剖面会复算出一个搜索时没判过的结论。
+    """
     if len(waypoints) < 2:
         raise ValueError("剖面至少需要两个航点")
     climb_wh = climb_energy_wh(vehicle, climb_delta)
@@ -353,9 +410,22 @@ def profile_along_route(
 
     samples: list[DiversionMarginSample] = []
     for s_m, (x, y) in sampled:
+        t_s = climb_time + cruise_time_s(vehicle, s_m)
+        active_field = field_at(t_s) if field_at is not None else field_
+        if active_field is None:
+            samples.append(
+                DiversionMarginSample(
+                    s_m=s_m,
+                    t_s=t_s,
+                    margin_wh=UNREACHABLE_MARGIN_WH,
+                    nearest_site_id=None,
+                    energy_need_wh=None,
+                )
+            )
+            continue
         energy_left = initial_energy_wh - climb_wh - cruise_energy_wh(vehicle, s_m)
         queried = query_margin(
-            field_=field_,
+            field_=active_field,
             grid=grid,
             x=x,
             y=y,
@@ -366,7 +436,7 @@ def profile_along_route(
         samples.append(
             DiversionMarginSample(
                 s_m=s_m,
-                t_s=climb_time + cruise_time_s(vehicle, s_m),
+                t_s=t_s,
                 margin_wh=queried.margin_wh,
                 nearest_site_id=queried.nearest_site_id,
                 energy_need_wh=queried.energy_need_wh,
@@ -432,9 +502,12 @@ def _explain_prune(path_reason: str | None, prune_counts: dict[str, int]) -> tup
     if prune_counts.get("no_exit"):
         parts.append(f"{prune_counts['no_exit']} 个状态没有几何可达的备降点")
         kind = "no_site" if not prune_counts.get("diversion") and not prune_counts.get("time") else kind
+    if prune_counts.get("no_site"):
+        parts.append(f"{prune_counts['no_site']} 个状态在到达时已无当前有效备降点（飞行中关闭）")
+        kind = "no_site"
     if prune_counts.get("time"):
         parts.append(f"{prune_counts['time']} 个状态超出任务时限")
-        if not prune_counts.get("diversion") and not prune_counts.get("no_exit"):
+        if not any(prune_counts.get(k) for k in ("diversion", "no_exit", "no_site")):
             kind = "time"
     if parts:
         return "无可行路线：" + "；".join(parts) + "。未返回放宽约束后的路线。", kind
@@ -453,15 +526,20 @@ def _accept_state(
     climb_wh: float,
     climb_time_s: float,
     time_limit_s: float | None,
+    field_at: Callable[[float], DiversionField | None] | None = None,
 ):
     slack_m = grid.res_m * math.sqrt(2.0)
     speed = vehicle.cruise_speed_mps
 
     def accept(node: tuple[int, int], g_m: float) -> str | None:
         g_chk = g_m + slack_m
-        if time_limit_s is not None and climb_time_s + g_chk / speed > time_limit_s:
+        t_s = climb_time_s + g_chk / speed
+        if time_limit_s is not None and t_s > time_limit_s:
             return "time"
-        dist = float(field_.dist_m[node[0], node[1]])
+        active_field = field_at(t_s) if field_at is not None else field_
+        if active_field is None:
+            return "no_site"
+        dist = float(active_field.dist_m[node[0], node[1]])
         if not math.isfinite(dist):
             return "no_exit"
         energy_left = initial_energy_wh - climb_wh - cruise_energy_wh(vehicle, g_chk)
@@ -519,8 +597,10 @@ def plan_scenario_with_diversion(
 
     sites, notes = active_landing_sites(scene, scenario, vehicle)
     grid = cached_grid(blockers_at_t0(scenario, scene), res_m=res_m, clearance_m=clearance_m)
-    field_ = cached_field(grid, sites)
-    pads = sum(len(_pad_cells(grid, site)) for site in sites)
+    schedule = site_closure_schedule(scenario)
+    field_at = make_field_at(grid, sites, schedule)
+    field_ = field_at(0.0)
+    pads = 0 if field_ is None else sum(len(_pad_cells(grid, site)) for site in sites)
     if pads == 0:
         detail = "；".join(notes) if notes else "没有备降点，或降落半径内没有可飞单元"
         return _empty_plan(
@@ -558,6 +638,7 @@ def plan_scenario_with_diversion(
             climb_wh=climb_wh,
             climb_time_s=climb_time,
             time_limit_s=time_limit,
+            field_at=field_at,
         ),
     )
     if not path.found:
@@ -583,6 +664,7 @@ def plan_scenario_with_diversion(
         reserve_wh=reserve,
         climb_delta=climb_delta,
         sample_step_m=sample_step_m,
+        field_at=field_at,
     )
     if not profile.is_feasible:
         worst = profile.min_margin_wh
@@ -644,7 +726,9 @@ def plan_baseline_annotated(
     climb_delta = climb_delta_m(scenario)
     sites, _notes = active_landing_sites(scene, scenario, vehicle)
     grid = cached_grid(blockers_at_t0(scenario, scene), res_m=res_m, clearance_m=clearance_m)
-    field_ = cached_field(grid, sites)
+    schedule = site_closure_schedule(scenario)
+    field_at = make_field_at(grid, sites, schedule)
+    field_ = field_at(0.0) or cached_field(grid, sites)
     start = endpoint_xy(scenario, "origin")
     goal = endpoint_xy(scenario, "destination")
     path = plan(grid, start, goal)
@@ -660,6 +744,7 @@ def plan_baseline_annotated(
             reserve_wh=reserve,
             climb_delta=climb_delta,
             sample_step_m=sample_step_m,
+            field_at=field_at,
         )
     return ScenarioPlan(
         algorithm="astar_static",

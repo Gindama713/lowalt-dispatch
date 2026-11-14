@@ -19,7 +19,7 @@ v0.1 —— 骨架 + 一条能跑通的评测管道。
 - `validator/` —— **独立校验器**：只读航线航点，按自己的采样重新判净空、限制区（按生效时刻）、载荷、能量、备降可达性
 - `agent/` —— M3 决策、审计恢复、M2适配、草稿确认与云服务基础接口；[最新运行与待办](docs/M3_2026-11-10基础接入与下一步.md)。本地可联调，真实MaaS/云资源/飞控仍待接入
 - `eval/` —— 评测 harness，一条命令跑 20 场景 × 3 种子 × 3 算法，产出带溯源 meta 的 CSV
-- `tests/` + `services/assistant/tests/` —— 公共契约、规划校验、M3/M4与助手集成测试；本机全量 **309 passed / 4 skipped**（2026-11-15 实跑，313 项收集）；定向回归与浏览器测试的历史记录见事实文档
+- `tests/` + `services/assistant/tests/` —— 公共契约、规划校验、M3/M4与助手集成测试；本机全量 **310 passed / 4 skipped**（2026-11-15 实跑，314 项收集）；定向回归与浏览器测试的历史记录见事实文档
 - [`apps/console/`](apps/console/README.md) —— AERIS React/MapLibre 控制台：真实底图与选点、2D/3D、M4/PX4 SITL 实时遥测或演示回放、地形版本变化、事件流、候选方案和调度助手
 - [`services/assistant/`](services/assistant/README.md) —— 控制台本地工具服务、MaaS 工具调用适配与地点搜索；默认规则演示，不下发飞控
 - [`services/api/`](services/api/README.md) —— 两条本地 HTTP：助手上的合成任务入口（确认 → 真实 M3/M2/独立校验 → M4 FakeExecutor → ACK/状态回传，支持直连及真实本机 MQTT Broker；不控制 PX4），以及独立进程 `python -m services.api` 的任务 / 场景 / 规划接口（默认仍是几何基线）
