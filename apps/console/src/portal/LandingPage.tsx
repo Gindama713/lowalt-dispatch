@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Box,
   Check,
-  CheckCircle2,
   ChevronRight,
   Compass,
   Cpu,
@@ -23,6 +22,7 @@ import {
 } from "lucide-react";
 import type { User } from "./api";
 import { ThemeToggle } from "./Theme";
+import HeroExperience from "./HeroExperience";
 import "./landing.css";
 
 const capabilities = [
@@ -431,33 +431,9 @@ export default function LandingPage({
               className="l-hero-visual"
               id="hero-model-slot"
               data-model-slot="hero"
-              aria-label="首页 3D 动画预留区域"
+              aria-label="首页交互式三维展示"
             >
-              <SpatialCanvas />
-              <div className="l-visual-tag l-tag-top">
-                <span className="l-tag-icon">
-                  <Route size={17} />
-                </span>
-                <div>
-                  <strong>任务与空间，同步连接</strong>
-                  <small>MISSION × SPATIAL INTELLIGENCE</small>
-                </div>
-                <CheckCircle2 size={15} />
-              </div>
-              <div className="l-visual-tag l-tag-bottom">
-                <span className="l-tag-icon violet">
-                  <ShieldCheck size={18} />
-                </span>
-                <div>
-                  <strong>每一步决策，都有依据</strong>
-                  <small>规划 · 校验 · 回执 · 追溯</small>
-                </div>
-              </div>
-              <div className="l-model-caption">
-                <span />
-                <span>3D 动画预留区域 · 当前为视觉示意</span>
-                <MoveUpRight size={13} />
-              </div>
+              <HeroExperience />
             </div>
           </div>
           <div className="l-hero-bottom">

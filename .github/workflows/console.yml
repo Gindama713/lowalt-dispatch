@@ -39,6 +39,8 @@ jobs:
         working-directory: apps/console
       - run: npm run build
         working-directory: apps/console
+      - run: npm run export:home
+        working-directory: apps/console
       - run: npx playwright install --with-deps chromium
         working-directory: apps/console
       - run: npm test

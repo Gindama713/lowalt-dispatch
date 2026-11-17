@@ -1,0 +1,58 @@
+name: AERIS homepage preview
+
+on:
+  push:
+    branches: ["feat/immersive-homepage"]
+  pull_request:
+    paths: ["apps/console/**", "references/rea-city-flight/**", ".github/workflows/home-preview.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: npm ci
+        working-directory: apps/console
+      - name: Format homepage sources
+        run: npx prettier --write src/portal/rea-city.d.ts src/portal/LandingPage.tsx src/portal/HeroExperience.tsx src/portal/heroScene.ts src/portal/hero-experience.css tests/hero.spec.ts vite.config.ts package.json scripts/export-home.mjs tests/home-export.spec.ts
+        working-directory: apps/console
+      - name: Report normalized sources
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+          for path in ["apps/console/src/portal/rea-city.d.ts","apps/console/src/portal/LandingPage.tsx","apps/console/src/portal/HeroExperience.tsx","apps/console/src/portal/heroScene.ts","apps/console/src/portal/hero-experience.css","apps/console/tests/hero.spec.ts","apps/console/vite.config.ts","apps/console/package.json","apps/console/scripts/export-home.mjs","apps/console/tests/home-export.spec.ts"]:
+              print("FORMATTED_SOURCE " + json.dumps({"path": path, "content": Path(path).read_text()}, ensure_ascii=True))
+      - run: npm run build
+        working-directory: apps/console
+      - run: npm run export:home
+        working-directory: apps/console
+      - run: python -m pip install -r services/assistant/requirements.txt
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/console
+      - run: npx playwright test tests/hero.spec.ts tests/home-export.spec.ts tests/portal.spec.ts tests/theme.spec.ts
+        working-directory: apps/console
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: AERIS-homepage-preview
+          path: |
+            apps/console/dist/home-preview/
+            apps/console/test-results/hero-*.png
+            apps/console/test-results/design-home*.png
+            apps/console/dist/
+          retention-days: 14
