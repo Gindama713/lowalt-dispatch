@@ -20,8 +20,9 @@ test("original CR30 renders, separates and restores; city uses REA geometry", as
   await expect(canvas).toHaveAttribute("data-explode", "1.000");
   expect((await canvas.screenshot()).equals(assembled)).toBe(false);
   await page.screenshot({
-    path: "test-results/hero-exploded.png",
+    path: "test-results/hero-exploded.jpg",
     animations: "disabled",
+    quality: 65,
   });
   await page.getByRole("button", { name: "反向复原", exact: true }).click();
   await expect(canvas).toHaveAttribute("data-explode", "0.000");
@@ -38,8 +39,9 @@ test("original CR30 renders, separates and restores; city uses REA geometry", as
     "true",
   );
   await page.screenshot({
-    path: "test-results/hero-assembled.png",
+    path: "test-results/hero-assembled.jpg",
     animations: "disabled",
+    quality: 65,
   });
   await page.getByRole("button", { name: "城市场景", exact: true }).click();
   await expect(stage).toHaveAttribute("data-ready", "true");
@@ -48,16 +50,18 @@ test("original CR30 renders, separates and restores; city uses REA geometry", as
   );
   await expect(stage).toContainText("非真实地理数据");
   await page.screenshot({
-    path: "test-results/hero-city.png",
+    path: "test-results/hero-city.jpg",
     animations: "disabled",
+    quality: 65,
   });
   await page.getByRole("button", { name: "机体展示", exact: true }).click();
   await expect(stage).toHaveAttribute("data-ready", "true");
   await expect(canvas).toHaveCount(1);
   await page.getByRole("button", { name: "切换到夜间模式" }).click();
   await page.screenshot({
-    path: "test-results/hero-dark.png",
+    path: "test-results/hero-dark.jpg",
     animations: "disabled",
+    quality: 65,
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await stage.scrollIntoViewIfNeeded();
@@ -67,8 +71,9 @@ test("original CR30 renders, separates and restores; city uses REA geometry", as
     ),
   ).toBeTruthy();
   await page.screenshot({
-    path: "test-results/hero-mobile.png",
+    path: "test-results/hero-mobile.jpg",
     animations: "disabled",
+    quality: 65,
   });
   expect(errors).toEqual([]);
 });

@@ -46,13 +46,21 @@ jobs:
         working-directory: apps/console
       - run: npx playwright test tests/hero.spec.ts tests/home-export.spec.ts tests/portal.spec.ts tests/theme.spec.ts
         working-directory: apps/console
+      - name: Inspect homepage screenshots
+        if: always()
+        shell: python
+        run: |
+          import base64
+          from pathlib import Path
+          for path in Path("apps/console/test-results").glob("hero-*.jpg"):
+              print("PREVIEW_IMAGE " + path.name + " " + base64.b64encode(path.read_bytes()).decode())
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: AERIS-homepage-preview
           path: |
             apps/console/dist/home-preview/
-            apps/console/test-results/hero-*.png
+            apps/console/test-results/hero-*
             apps/console/test-results/design-home*.png
             apps/console/dist/
           retention-days: 14
