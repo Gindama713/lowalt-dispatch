@@ -27,16 +27,8 @@ jobs:
           python-version: "3.13"
       - run: npm ci
         working-directory: apps/console
-      - name: Format homepage sources
-        run: npx prettier --write src/portal/rea-city.d.ts src/portal/LandingPage.tsx src/portal/HeroExperience.tsx src/portal/heroScene.ts src/portal/hero-experience.css tests/hero.spec.ts vite.config.ts package.json scripts/export-home.mjs tests/home-export.spec.ts
+      - run: npm run format:check
         working-directory: apps/console
-      - name: Report normalized sources
-        shell: python
-        run: |
-          import json
-          from pathlib import Path
-          for path in ["apps/console/src/portal/rea-city.d.ts","apps/console/src/portal/LandingPage.tsx","apps/console/src/portal/HeroExperience.tsx","apps/console/src/portal/heroScene.ts","apps/console/src/portal/hero-experience.css","apps/console/tests/hero.spec.ts","apps/console/vite.config.ts","apps/console/package.json","apps/console/scripts/export-home.mjs","apps/console/tests/home-export.spec.ts"]:
-              print("FORMATTED_SOURCE " + json.dumps({"path": path, "content": Path(path).read_text()}, ensure_ascii=True))
       - run: npm run build
         working-directory: apps/console
       - run: npm run export:home
@@ -46,14 +38,6 @@ jobs:
         working-directory: apps/console
       - run: npx playwright test tests/hero.spec.ts tests/home-export.spec.ts tests/portal.spec.ts tests/theme.spec.ts
         working-directory: apps/console
-      - name: Inspect homepage screenshots
-        if: always()
-        shell: python
-        run: |
-          import base64
-          from pathlib import Path
-          for path in Path("apps/console/test-results").glob("hero-*.jpg"):
-              print("PREVIEW_IMAGE " + path.name + " " + base64.b64encode(path.read_bytes()).decode())
       - uses: actions/upload-artifact@v4
         if: always()
         with:
