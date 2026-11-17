@@ -52,7 +52,8 @@ export function createHeroScene(
   room.dispose();
   pmrem.dispose();
   scene.environment = environment.texture;
-  scene.add(new T.HemisphereLight(0xddeeff, 0x7588ad, 2.4));
+  const hemisphere = new T.HemisphereLight(0xddeeff, 0x7588ad, 1.8);
+  scene.add(hemisphere);
   const key = new T.DirectionalLight(0xffffff, 4);
   key.position.set(3, 7, 5);
   scene.add(key);
@@ -149,7 +150,7 @@ export function createHeroScene(
   let elapsed = 0;
   let lastMode = state.current.mode;
   let lastReset = state.current.reset;
-  let lastTheme = "";
+  let lastAppearance = "";
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
   function release(root: T.Object3D) {
@@ -216,9 +217,9 @@ export function createHeroScene(
   );
 
   function resetCamera() {
-    if (state.current.mode === "city") camera.position.set(6.3, 5.5, 7.7);
+    if (state.current.mode === "city") camera.position.set(5.2, 4.8, 6.2);
     else camera.position.set(5.7, 3.2, 6.3);
-    controls.target.set(0, -0.05, 0);
+    controls.target.set(0, state.current.mode === "city" ? -0.8 : -0.05, 0);
     controls.update();
   }
   function resize() {
@@ -258,10 +259,16 @@ export function createHeroScene(
           if (!disposed) notify("city", "城市场景加载失败，请重新载入。");
         });
     }
-    if (lastTheme !== current.theme) {
-      renderer.toneMappingExposure = current.theme === "dark" ? 1.65 : 1.45;
+    const appearance = current.mode + "-" + current.theme;
+    if (lastAppearance !== appearance) {
+      const isCity = current.mode === "city";
+      renderer.toneMappingExposure = isCity ? 0.9 : 1.2;
+      scene.environmentIntensity = isCity ? 0.2 : 0.9;
+      hemisphere.intensity = isCity ? 1.1 : 1.8;
+      key.intensity = isCity ? 1.5 : 2.8;
+      rim.intensity = isCity ? 0.45 : 1.8;
       ringMaterial.opacity = current.theme === "dark" ? 0.35 : 0.25;
-      lastTheme = current.theme;
+      lastAppearance = appearance;
     }
     const target = current.explode / 100;
     progress = reduced.matches
