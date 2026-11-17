@@ -11,7 +11,9 @@ const result = await build({
     react(),
     {
       name: "aeris-home-preview",
-      resolveId(id) { if (id === entry) return entry; },
+      resolveId(id) {
+        if (id === entry) return entry;
+      },
       load(id) {
         if (id !== entry) return;
         return `
@@ -44,9 +46,17 @@ const result = await build({
     },
   },
 });
-const outputs = (Array.isArray(result) ? result : [result]).flatMap(value => value.output);
-const js = outputs.filter(value => value.type === "chunk").map(value => value.code).join("\n");
-const css = outputs.filter(value => value.type === "asset" && value.fileName.endsWith(".css")).map(value => value.source).join("\n");
+const outputs = (Array.isArray(result) ? result : [result]).flatMap(
+  (value) => value.output,
+);
+const js = outputs
+  .filter((value) => value.type === "chunk")
+  .map((value) => value.code)
+  .join("\n");
+const css = outputs
+  .filter((value) => value.type === "asset" && value.fileName.endsWith(".css"))
+  .map((value) => value.source)
+  .join("\n");
 const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AERIS · 交互式三维首页</title><style>${css}</style>
