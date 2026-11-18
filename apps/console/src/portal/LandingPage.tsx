@@ -17,7 +17,6 @@ import {
   Radio,
   Route,
   ShieldCheck,
-  Sparkles,
   Users,
 } from "lucide-react";
 import type { User } from "./api";
@@ -379,25 +378,16 @@ export default function LandingPage({
           </div>
           <div className="l-hero-inner">
             <div className="l-hero-copy">
-              <div className="l-announcement">
-                <span>
-                  <Sparkles size={12} />
-                </span>
-                空间感知，让决策更进一步
-                <ChevronRight size={13} />
-              </div>
-              <p className="l-eyebrow">A CLEARER WAY TO FLY</p>
+              <p className="l-eyebrow">AERIS / 低空任务指挥台</p>
               <h1>
                 让每一次低空任务，
                 <br />
                 <em>都有清晰的下一步。</em>
               </h1>
               <p className="l-hero-description">
-                从空间感知，到任务决策。
+                在同一张地图上规划航线、核对空域、追踪设备，
                 <br />
-                在一个工作区，连接任务、空域与团队，
-                <br />
-                让每一次出发，都有依据可循。
+                从任务创建到执行回执，每一步都有据可查。
               </p>
               <div className="l-hero-actions">
                 <button
@@ -437,10 +427,7 @@ export default function LandingPage({
             </div>
           </div>
           <div className="l-hero-bottom">
-            <span>
-              <i />
-              DESIGNED FOR EVERY NEXT MOVE
-            </span>
+            <span>任务中心 / 空域态势 / 设备与遥测</span>
             <a href="#capabilities">
               向下探索
               <ArrowDown size={14} />

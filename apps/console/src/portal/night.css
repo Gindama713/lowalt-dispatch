@@ -992,15 +992,9 @@
   color: #a2b9da;
   border-color: #a1b4df25;
 }
-:root[data-theme="dark"] .l-announcement {
-  background: #2436509c;
-  color: #b9cff0;
-  border-color: #50729b5e;
-}
-:root[data-theme="dark"] .l-announcement > span {
-  color: #afd3ff;
-  background: #2a4168;
-  border-color: #47638b;
+:root[data-theme="dark"] .l-product-nav > div,
+:root[data-theme="dark"] .l-hero-bottom > a {
+  color: #b4c9e0;
 }
 :root[data-theme="dark"] .l-eyebrow,
 :root[data-theme="dark"] .l-hero-copy > .l-eyebrow {

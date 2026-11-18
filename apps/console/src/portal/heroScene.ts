@@ -7,9 +7,11 @@ import cr30Url from "../../../../references/rea-city-flight/asset/out/cr30.glb?u
 import dracoWrapper from "three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js?url";
 import dracoWasm from "three/examples/jsm/libs/draco/gltf/draco_decoder.wasm?url";
 import type { buildCity } from "../../../../references/rea-city-flight/map-nav/map/city-world.js";
+import { inspectAssembly, type PartScope } from "./heroAssembly";
 
 export type HeroState = {
   mode: "model" | "city";
+  scope: string;
   explode: number;
   rotate: boolean;
   scan: boolean;
@@ -22,6 +24,8 @@ export function createHeroScene(
   host: HTMLDivElement,
   state: { current: HeroState },
   notify: (mode: HeroState["mode"], error?: string) => void,
+  onScopes: (scopes: PartScope[]) => void,
+  onPick: (scope: string) => void,
 ) {
   let renderer: T.WebGLRenderer;
   try {
@@ -62,6 +66,19 @@ export function createHeroScene(
   scene.add(rim);
   const model = new T.Group();
   scene.add(model);
+  const axis = new T.LineSegments(
+    new T.BufferGeometry(),
+    new T.LineDashedMaterial({
+      color: 0x9debd8,
+      transparent: true,
+      opacity: 0.55,
+      dashSize: 0.024,
+      gapSize: 0.02,
+      depthWrite: false,
+    }),
+  );
+  axis.visible = false;
+  model.add(axis);
   const floor = new T.Group();
   floor.position.y = -1.65;
   scene.add(floor);
@@ -123,12 +140,7 @@ export function createHeroScene(
   );
   scene.add(particles);
 
-  const parts: {
-    mesh: T.Mesh;
-    origin: T.Vector3;
-    offset: T.Vector3;
-    stagger: number;
-  }[] = [];
+  let assembly: ReturnType<typeof inspectAssembly> | undefined;
   const manager = new T.LoadingManager();
   manager.setURLModifier((url) =>
     url === "draco_wasm_wrapper.js"
@@ -145,7 +157,7 @@ export function createHeroScene(
   let visible = true;
   let city: ReturnType<typeof buildCity> | undefined;
   let cityRequested = false;
-  let progress = 0;
+  let lastScope = "";
   let lastTime = 0;
   let elapsed = 0;
   let lastMode = state.current.mode;
@@ -193,21 +205,11 @@ export function createHeroScene(
         .copy(bounds.getCenter(new T.Vector3()))
         .multiplyScalar(-scale);
       gltf.scene.scale.setScalar(scale);
-      gltf.scene.traverse((object) => {
-        if (!(object instanceof T.Mesh)) return;
-        const { explodeDir, explodeDist, stagger } = object.userData;
-        if (Array.isArray(explodeDir) && typeof explodeDist === "number")
-          parts.push({
-            mesh: object,
-            origin: object.position.clone(),
-            offset: new T.Vector3()
-              .fromArray(explodeDir)
-              .multiplyScalar(explodeDist),
-            stagger: Number(stagger) || 0,
-          });
-      });
       model.add(gltf.scene);
-      renderer.domElement.dataset.parts = String(parts.length);
+      assembly = inspectAssembly(gltf.scene);
+      onScopes(assembly.scopes);
+      renderer.domElement.dataset.parts = String(assembly.count);
+      lastScope = "";
       notify("model");
     },
     undefined,
@@ -216,33 +218,190 @@ export function createHeroScene(
     },
   );
 
-  function resetCamera() {
-    if (state.current.mode === "city") camera.position.set(5.2, 4.8, 6.2);
-    else camera.position.set(5.7, 3.2, 6.3);
-    controls.target.set(0, state.current.mode === "city" ? -0.8 : -0.05, 0);
-    controls.update();
+  const orbit = new T.Spherical();
+  const arm = new T.Vector3();
+  let flight:
+    | {
+        from: T.Spherical;
+        to: T.Spherical;
+        start: T.Vector3;
+        end: T.Vector3;
+        time: number;
+      }
+    | undefined;
+  let wheelRadius: number | undefined;
+  function frameSelection(immediate = false) {
+    const isCity = state.current.mode === "city";
+    const box = !isCity && assembly?.bounds.get(state.current.scope);
+    const end = new T.Vector3(0, isCity ? -0.8 : -0.05, 0);
+    const position = isCity
+      ? new T.Vector3(5.2, 4.8, 6.2)
+      : new T.Vector3(2.45, 3.15, 6.75).multiplyScalar(
+          Math.max(1, 1.52 / camera.aspect),
+        );
+    controls.minDistance = isCity ? 4 : 0.65;
+    if (box) {
+      box.getCenter(end);
+      const direction = new T.Vector3(end.x, 0, end.z);
+      if (direction.lengthSq() < 0.12) direction.set(-0.65, 0, 1);
+      direction.normalize().y = state.current.scope.startsWith("PWR_")
+        ? 0.17
+        : end.y < -0.15
+          ? 0.22
+          : 0.64;
+      direction.normalize();
+      const right = new T.Vector3()
+        .crossVectors(camera.up, direction)
+        .normalize();
+      const up = new T.Vector3().crossVectors(direction, right);
+      const tan = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+      let distance = 0;
+      for (const x of [box.min.x, box.max.x])
+        for (const y of [box.min.y, box.max.y])
+          for (const z of [box.min.z, box.max.z]) {
+            arm.set(x, y, z).sub(end);
+            const extent = Math.max(
+              Math.abs(arm.dot(right)) / camera.aspect,
+              Math.abs(arm.dot(up)),
+            );
+            distance = Math.max(
+              distance,
+              arm.dot(direction) + (1.14 * extent) / tan,
+            );
+          }
+      position
+        .copy(end)
+        .addScaledVector(
+          direction,
+          T.MathUtils.clamp(
+            distance,
+            controls.minDistance,
+            controls.maxDistance,
+          ),
+        );
+    }
+    wheelRadius = undefined;
+    if (immediate || reduced.matches) {
+      flight = undefined;
+      camera.position.copy(position);
+      controls.target.copy(end);
+      controls.update();
+      return;
+    }
+    const from = new T.Spherical().setFromVector3(
+      arm.subVectors(camera.position, controls.target),
+    );
+    const to = new T.Spherical().setFromVector3(position.sub(end));
+    const angle = to.theta - from.theta;
+    to.theta = from.theta + Math.atan2(Math.sin(angle), Math.cos(angle));
+    flight = { from, to, start: controls.target.clone(), end, time: 0 };
   }
+  function interrupt() {
+    flight = undefined;
+    wheelRadius = undefined;
+  }
+  controls.addEventListener("start", interrupt);
+  const canvas = renderer.domElement;
+  function wheel(event: WheelEvent) {
+    if (state.current.mode !== "model") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    flight = undefined;
+    const units =
+      event.deltaMode === 1
+        ? 16
+        : event.deltaMode === 2
+          ? canvas.clientHeight
+          : 1;
+    const delta = T.MathUtils.clamp(event.deltaY * units, -240, 240);
+    wheelRadius = T.MathUtils.clamp(
+      (wheelRadius ?? controls.getDistance()) * Math.exp(delta * 0.0016),
+      controls.minDistance,
+      controls.maxDistance,
+    );
+  }
+  canvas.addEventListener("wheel", wheel, { capture: true, passive: false });
+  const ray = new T.Raycaster();
+  const pointer = new T.Vector2();
+  let tap: { id: number; x: number; y: number } | undefined;
+  function pointerDown(event: PointerEvent) {
+    tap =
+      event.isPrimary && event.button === 0 && state.current.mode === "model"
+        ? { id: event.pointerId, x: event.clientX, y: event.clientY }
+        : undefined;
+  }
+  function pointerMove(event: PointerEvent) {
+    if (
+      tap &&
+      tap.id === event.pointerId &&
+      Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 5
+    )
+      tap = undefined;
+  }
+  function clearTap() {
+    tap = undefined;
+  }
+  function pointerUp(event: PointerEvent) {
+    pointerMove(event);
+    if (tap?.id !== event.pointerId) return;
+    clearTap();
+    if (state.current.mode !== "model" || !assembly) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.set(
+      (2 * (event.clientX - rect.left)) / rect.width - 1,
+      1 - (2 * (event.clientY - rect.top)) / rect.height,
+    );
+    ray.setFromCamera(pointer, camera);
+    const id = assembly.pick(ray);
+    if (id) onPick(id);
+  }
+  canvas.addEventListener("pointerdown", pointerDown);
+  canvas.addEventListener("pointermove", pointerMove);
+  canvas.addEventListener("pointerup", pointerUp);
+  canvas.addEventListener("pointercancel", clearTap);
   function resize() {
     const { width, height } = host.getBoundingClientRect();
     if (!width || !height) return;
+    const oldAspect = camera.aspect;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
+    if (oldAspect !== camera.aspect) frameSelection(true);
   }
-  resetCamera();
+  frameSelection(true);
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(host);
   resize();
+  const labels = host.getElementsByClassName(
+    "hx-hotspot",
+  ) as HTMLCollectionOf<HTMLButtonElement>;
+  const projected = new T.Vector3();
 
   function render(time: number) {
     const dt = Math.min((time - lastTime) / 1000 || 0.016, 0.05);
     lastTime = time;
     elapsed += dt;
     const current = state.current;
-    if (current.mode !== lastMode || current.reset !== lastReset) {
-      resetCamera();
+    if (
+      current.mode !== lastMode ||
+      current.reset !== lastReset ||
+      (assembly && current.scope !== lastScope)
+    ) {
+      assembly?.select(current.scope);
+      const box = assembly?.bounds.get(current.scope);
+      if (box && current.scope.startsWith("PWR_")) {
+        const center = box.getCenter(new T.Vector3());
+        axis.geometry.dispose();
+        axis.geometry = new T.BufferGeometry().setFromPoints([
+          new T.Vector3(center.x, box.min.y, center.z),
+          new T.Vector3(center.x, box.max.y, center.z),
+        ]);
+        axis.computeLineDistances();
+      }
+      frameSelection(current.mode !== lastMode);
       lastMode = current.mode;
       lastReset = current.reset;
+      lastScope = current.scope;
     }
     if (current.mode === "city" && !cityRequested) {
       cityRequested = true;
@@ -262,41 +421,96 @@ export function createHeroScene(
     const appearance = current.mode + "-" + current.theme;
     if (lastAppearance !== appearance) {
       const isCity = current.mode === "city";
-      renderer.toneMappingExposure = isCity ? 0.9 : 1.2;
-      scene.environmentIntensity = isCity ? 0.2 : 0.9;
-      hemisphere.intensity = isCity ? 1.1 : 1.8;
-      key.intensity = isCity ? 1.5 : 2.8;
-      rim.intensity = isCity ? 0.45 : 1.8;
+      renderer.toneMappingExposure = isCity ? 0.9 : 1.05;
+      scene.environmentIntensity = isCity ? 0.2 : 1.05;
+      hemisphere.intensity = isCity ? 1.1 : 1.4;
+      key.intensity = isCity ? 1.5 : 2.45;
+      rim.intensity = isCity ? 0.45 : 2.8;
       ringMaterial.opacity = current.theme === "dark" ? 0.35 : 0.25;
       lastAppearance = appearance;
     }
-    const target = current.explode / 100;
-    progress = reduced.matches
-      ? target
-      : T.MathUtils.damp(progress, target, 5, dt);
-    for (const { mesh, origin, offset, stagger } of parts) {
-      const amount = T.MathUtils.smoothstep(
-        progress,
-        stagger * 0.18,
-        0.8 + stagger * 0.18,
-      );
-      mesh.position.copy(origin).addScaledVector(offset, amount);
-    }
+    const blend = reduced.matches ? 1 : 1 - Math.exp(-5 * dt);
+    const progress = assembly?.update(current.explode / 100, blend) ?? 0;
+    axis.visible =
+      current.mode === "model" &&
+      current.scope.startsWith("PWR_") &&
+      progress > 0.04;
+    axis.material.opacity = progress * 0.55;
     renderer.domElement.dataset.explode = progress.toFixed(3);
-    model.scale.setScalar(1 - progress * 0.18);
+    model.scale.setScalar(
+      T.MathUtils.lerp(
+        model.scale.x,
+        current.scope ? 1 : 1 - progress * 0.18,
+        blend,
+      ),
+    );
     model.visible = current.mode === "model";
     if (city) {
       city.world.visible = current.mode === "city";
       if (!reduced.matches && city.world.visible) city.update(dt);
     }
-    floor.visible = current.mode === "model";
+    floor.visible = current.mode === "model" && !current.scope;
     scan.visible = current.scan;
     scan.position.y = reduced.matches ? 0.25 : Math.sin(elapsed * 0.75) * 1.7;
     particles.visible = current.scan;
     if (!reduced.matches) particles.rotation.y = elapsed * 0.035;
-    controls.autoRotate = current.rotate && !reduced.matches;
+    canvas.style.touchAction = current.mode === "model" ? "none" : "pan-y";
+    if (flight) {
+      flight.time += dt;
+      const t = reduced.matches
+        ? 1
+        : T.MathUtils.smootherstep(flight.time, 0, 0.85);
+      const { from, to } = flight;
+      controls.target.lerpVectors(flight.start, flight.end, t);
+      orbit.set(
+        T.MathUtils.lerp(from.radius, to.radius, t),
+        T.MathUtils.lerp(from.phi, to.phi, t),
+        T.MathUtils.lerp(from.theta, to.theta, t),
+      );
+      camera.position.copy(controls.target).add(arm.setFromSpherical(orbit));
+      if (t === 1) flight = undefined;
+    } else if (wheelRadius !== undefined) {
+      const distance = reduced.matches
+        ? wheelRadius
+        : T.MathUtils.damp(controls.getDistance(), wheelRadius, 14, dt);
+      arm.subVectors(camera.position, controls.target).setLength(distance);
+      camera.position.copy(controls.target).add(arm);
+      if (Math.abs(distance - wheelRadius) < 0.001) wheelRadius = undefined;
+    }
+    controls.autoRotate = current.rotate && !reduced.matches && !flight;
     controls.update(dt);
     renderer.render(scene, camera);
+    const motorAnchor = labels.length && assembly?.anchors.get("PWR_MOTOR-FL");
+    const motorOnLeft = motorAnchor
+      ? projected
+          .copy(motorAnchor)
+          .applyMatrix4(model.matrixWorld)
+          .project(camera).x < 0
+      : false;
+    for (const label of labels) {
+      const point = assembly?.anchors.get(label.dataset.anchor!);
+      if (!point) continue;
+      projected.copy(point).applyMatrix4(model.matrixWorld).project(camera);
+      const x = ((projected.x + 1) / 2) * canvas.clientWidth;
+      const y = ((1 - projected.y) / 2) * canvas.clientHeight;
+      const leadLeft =
+        label.dataset.anchor === "BAT" ? !motorOnLeft : motorOnLeft;
+      label.dataset.side =
+        x < 98
+          ? "right"
+          : x > canvas.clientWidth - 98
+            ? "left"
+            : leadLeft
+              ? "left"
+              : "right";
+      label.style.visibility =
+        Math.abs(projected.x) < 0.93 &&
+        Math.abs(projected.y) < 0.85 &&
+        Math.abs(projected.z) < 1
+          ? "visible"
+          : "hidden";
+      label.style.transform = `translate3d(${x}px,${y}px,0)`;
+    }
   }
   function visibility() {
     renderer.setAnimationLoop(visible && !document.hidden ? render : null);
@@ -324,6 +538,13 @@ export function createHeroScene(
     resizeObserver.disconnect();
     document.removeEventListener("visibilitychange", visibility);
     renderer.domElement.removeEventListener("webglcontextlost", contextLost);
+    canvas.removeEventListener("wheel", wheel, true);
+    canvas.removeEventListener("pointerdown", pointerDown);
+    canvas.removeEventListener("pointermove", pointerMove);
+    canvas.removeEventListener("pointerup", pointerUp);
+    canvas.removeEventListener("pointercancel", clearTap);
+    controls.removeEventListener("start", interrupt);
+    assembly?.dispose();
     controls.dispose();
     draco.dispose();
     release(scene);
