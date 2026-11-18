@@ -107,11 +107,10 @@
   position: relative;
   background: linear-gradient(
     108deg,
-    #eef6ff 0%,
-    #eff3ff 34%,
-    #e2e6fb 48%,
-    #6777b8 76%,
-    #314b8c 100%
+    #f4f8fa 0%,
+    #f2f6fa 34%,
+    #e6edf6 58%,
+    #d2dced 100%
   );
   isolation: isolate;
 }
@@ -121,8 +120,8 @@
   z-index: -1;
   inset: 0;
   background:
-    radial-gradient(ellipse at 73% 7%, #cca0f78a, transparent 55%),
-    radial-gradient(ellipse at 81% 86%, #3fc3d263, transparent 51%),
+    radial-gradient(ellipse at 73% 7%, #b7b1e635, transparent 55%),
+    radial-gradient(ellipse at 81% 86%, #8dc5cf42, transparent 51%),
     linear-gradient(90deg, #f5f9ff80, transparent 68%);
 }
 .l-hero-halo {
@@ -174,7 +173,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  color: #e2e8ff;
+  color: #455a73;
   font-size: 10px;
 }
 .l-product-nav i {
@@ -197,34 +196,6 @@
   position: relative;
   z-index: 2;
 }
-.l-announcement {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 12px;
-  color: #53729b;
-  margin-bottom: 30px;
-  width: max-content;
-  background: #ffffff7a;
-  border: 1px solid #ffffffb3;
-  border-radius: 30px;
-  padding: 6px 10px 6px 6px;
-  box-shadow: 0 2px 8px #2b488305;
-}
-.l-announcement > span {
-  background: #e1eafe;
-  border: 1px solid #d2e1f7;
-  display: grid;
-  place-items: center;
-  color: #497ed4;
-  width: 21px;
-  height: 21px;
-  border-radius: 50%;
-}
-.l-announcement > svg {
-  color: #9baed0;
-  margin-left: 7px;
-}
 .l-eyebrow {
   font-size: 10px;
   color: #5e7797;
@@ -238,7 +209,7 @@
   color: #5a779c;
 }
 .l-hero h1 {
-  font-size: clamp(33px, 3.25vw, 49px);
+  font-size: clamp(33px, 3.3vw, 52px);
   font-weight: 550;
   line-height: 1.4;
   letter-spacing: -1.2px;
@@ -430,7 +401,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #c6d6f3;
+  color: #455c75;
   font-size: 10px;
   letter-spacing: 0;
 }
@@ -1181,10 +1152,6 @@
     font-size: 9px;
     gap: 15px;
   }
-  .l-announcement {
-    font-size: 9px;
-    margin-bottom: 25px;
-  }
   .l-tag-top {
     top: 15px;
     right: 0;
@@ -1335,13 +1302,7 @@
     padding: 7px 10px;
   }
   .l-hero {
-    background: linear-gradient(
-      165deg,
-      #edf5ff 3%,
-      #eef0ff 39%,
-      #b1bbdf 65%,
-      #5c82b5 100%
-    );
+    background: linear-gradient(165deg, #eff4f9 3%, #e6edf6 39%, #f1f5f9 100%);
   }
   .l-hero:before {
     background: radial-gradient(ellipse at 80% 72%, #9cb1ed7a, transparent 70%);
@@ -1364,10 +1325,6 @@
     display: block;
     padding: 30px 23px 36px;
     min-height: 0;
-  }
-  .l-announcement {
-    font-size: 11px;
-    margin-bottom: 25px;
   }
   .l-hero-copy > .l-eyebrow {
     font-size: 8px;

@@ -12,6 +12,7 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react()],
+  resolve: { dedupe: ["three"] },
   server: { proxy },
   preview: { proxy },
   build: {
