@@ -1,0 +1,141 @@
+﻿system,subassembly,part,quantity,material,standard
+BAT,PACK,BAT_PACK_AntiMistakeLatch,2,注塑ABS · 石墨黑,
+BAT,PACK,BAT_PACK_CarryHandle,1,注塑ABS · 石墨黑,
+BAT,PACK,BAT_PACK_PowerContact,2,镀金触点,XT60
+BAT,PACK,BAT_PACK_SmartBattery10S,1,注塑ABS · 哑黑,
+BAT,RAIL,BAT_RAIL_ContactPlate,1,PCB · 绿阻焊丝印,
+BAT,RAIL,BAT_RAIL_SlideRail,2,铝合金 · 本色,
+CARGO,BAY,CARGO_BAY_ElectromagneticLock,1,阳极氧化铝 · 深空灰,
+CARGO,BAY,CARGO_BAY_LockTongue,1,合金钢 · 发黑,
+CARGO,BAY,CARGO_BAY_ReleaseDoor,1,注塑ABS · 哑黑,
+CARGO,BAY,CARGO_BAY_Shell,1,注塑ABS · 石墨装甲,
+CARGO,DROP,CARGO_DROP_LoadCell,2,铝合金 · 本色,GB/T 7551
+CARGO,DROP,CARGO_DROP_PayloadHook,1,合金钢 · 发黑,
+CARGO,DROP,CARGO_DROP_ReleaseLinkRod,2,合金钢 · 发黑,
+CARGO,DROP,CARGO_DROP_ServoWinch,1,阳极氧化铝 · 深空灰,
+CARGO,DROP,CARGO_DROP_WinchDrum,1,合金钢 · 发黑,
+FC,FC,FC_FC_BarometerCover,1,减震泡棉,
+FC,FC,FC_FC_Buzzer,1,注塑ABS · 哑黑,
+FC,FC,FC_FC_FlightControllerPCB,1,PCB · 绿阻焊丝印,
+FC,FC,FC_FC_IMUCarrier,1,注塑ABS · 哑黑,
+FC,FC,FC_FC_IMUDampingBall,4,硅胶减震球,GB/T 20688
+FC,FC,FC_FC_LEDLens,1,LED · 状态灯,
+FC,FC,FC_FC_ShieldCover,1,铝合金 · 本色,
+FC,FC,FC_FC_StatusLEDModule,1,PCB · 绿阻焊丝印,
+FRAME,ARM,FRAME_ARM_CarbonTube_FL,1,碳纤维 · 2K斜纹清漆,
+FRAME,ARM,FRAME_ARM_CarbonTube_FR,1,碳纤维 · 2K斜纹清漆,
+FRAME,ARM,FRAME_ARM_CarbonTube_RL,1,碳纤维 · 2K斜纹清漆,
+FRAME,ARM,FRAME_ARM_CarbonTube_RR,1,碳纤维 · 2K斜纹清漆,
+FRAME,CLASP,FRAME_CLASP_FoldingLatch_FL,1,阳极氧化铝 · 深空灰,
+FRAME,CLASP,FRAME_CLASP_FoldingLatch_FR,1,阳极氧化铝 · 深空灰,
+FRAME,CLASP,FRAME_CLASP_FoldingLatch_RL,1,阳极氧化铝 · 深空灰,
+FRAME,CLASP,FRAME_CLASP_FoldingLatch_RR,1,阳极氧化铝 · 深空灰,
+FRAME,CLASP,FRAME_CLASP_LatchPin_FL,2,合金钢 · 发黑,GB/T 882
+FRAME,CLASP,FRAME_CLASP_LatchPin_FR,2,合金钢 · 发黑,GB/T 882
+FRAME,CLASP,FRAME_CLASP_LatchPin_RL,2,合金钢 · 发黑,GB/T 882
+FRAME,CLASP,FRAME_CLASP_LatchPin_RR,2,合金钢 · 发黑,GB/T 882
+FRAME,CLASP,FRAME_CLASP_ReturnSpring_FL,1,合金钢 · 发黑,GB/T 2089
+FRAME,CLASP,FRAME_CLASP_ReturnSpring_FR,1,合金钢 · 发黑,GB/T 2089
+FRAME,CLASP,FRAME_CLASP_ReturnSpring_RL,1,合金钢 · 发黑,GB/T 2089
+FRAME,CLASP,FRAME_CLASP_ReturnSpring_RR,1,合金钢 · 发黑,GB/T 2089
+FRAME,JOINT,FRAME_JOINT_AlArmJoint_FL,1,阳极氧化铝 · 深空灰,
+FRAME,JOINT,FRAME_JOINT_AlArmJoint_FR,1,阳极氧化铝 · 深空灰,
+FRAME,JOINT,FRAME_JOINT_AlArmJoint_RL,1,阳极氧化铝 · 深空灰,
+FRAME,JOINT,FRAME_JOINT_AlArmJoint_RR,1,阳极氧化铝 · 深空灰,
+FRAME,MOTORMNT,FRAME_MOTORMNT_MountPlate_FL,1,阳极氧化铝 · 深空灰,
+FRAME,MOTORMNT,FRAME_MOTORMNT_MountPlate_FR,1,阳极氧化铝 · 深空灰,
+FRAME,MOTORMNT,FRAME_MOTORMNT_MountPlate_RL,1,阳极氧化铝 · 深空灰,
+FRAME,MOTORMNT,FRAME_MOTORMNT_MountPlate_RR,1,阳极氧化铝 · 深空灰,
+FRAME,PLATE,FRAME_PLATE_LowerCarbonPlate,1,碳纤维 · 2K斜纹清漆,
+FRAME,PLATE,FRAME_PLATE_UpperCarbonPlate,1,碳纤维 · 2K斜纹清漆,
+FRAME,STANDOFF,FRAME_STANDOFF_AlColumn,6,铝合金 · 本色,
+LAND,LEG-FL,LAND_LEG-FL_CarbonLeg,1,碳纤维 · 2K斜纹清漆,
+LAND,LEG-FL,LAND_LEG-FL_FoamSleeve,1,减震泡棉,
+LAND,LEG-FL,LAND_LEG-FL_FootPad,1,橡胶脚垫,
+LAND,LEG-FL,LAND_LEG-FL_LegMount,1,阳极氧化铝 · 深空灰,
+LAND,LEG-FR,LAND_LEG-FR_CarbonLeg,1,碳纤维 · 2K斜纹清漆,
+LAND,LEG-FR,LAND_LEG-FR_FoamSleeve,1,减震泡棉,
+LAND,LEG-FR,LAND_LEG-FR_FootPad,1,橡胶脚垫,
+LAND,LEG-FR,LAND_LEG-FR_LegMount,1,阳极氧化铝 · 深空灰,
+LAND,LEG-RL,LAND_LEG-RL_CarbonLeg,1,碳纤维 · 2K斜纹清漆,
+LAND,LEG-RL,LAND_LEG-RL_FoamSleeve,1,减震泡棉,
+LAND,LEG-RL,LAND_LEG-RL_FootPad,1,橡胶脚垫,
+LAND,LEG-RL,LAND_LEG-RL_LegMount,1,阳极氧化铝 · 深空灰,
+LAND,LEG-RR,LAND_LEG-RR_CarbonLeg,1,碳纤维 · 2K斜纹清漆,
+LAND,LEG-RR,LAND_LEG-RR_FoamSleeve,1,减震泡棉,
+LAND,LEG-RR,LAND_LEG-RR_FootPad,1,橡胶脚垫,
+LAND,LEG-RR,LAND_LEG-RR_LegMount,1,阳极氧化铝 · 深空灰,
+PWR,ESC-FL,PWR_ESC-FL_ESC60A,1,注塑ABS · 哑黑,
+PWR,ESC-FL,PWR_ESC-FL_Heatsink,1,铝合金 · 本色,
+PWR,ESC-FR,PWR_ESC-FR_ESC60A,1,注塑ABS · 哑黑,
+PWR,ESC-FR,PWR_ESC-FR_Heatsink,1,铝合金 · 本色,
+PWR,ESC-RL,PWR_ESC-RL_ESC60A,1,注塑ABS · 哑黑,
+PWR,ESC-RL,PWR_ESC-RL_Heatsink,1,铝合金 · 本色,
+PWR,ESC-RR,PWR_ESC-RR_ESC60A,1,注塑ABS · 哑黑,
+PWR,ESC-RR,PWR_ESC-RR_Heatsink,1,铝合金 · 本色,
+PWR,MOTOR-FL,PWR_MOTOR-FL_Bearing_6201,2,合金钢 · 发黑,GB/T 276 6201
+PWR,MOTOR-FL,PWR_MOTOR-FL_RotorBell,1,阳极氧化铝 · 能量黄,
+PWR,MOTOR-FL,PWR_MOTOR-FL_Shaft,1,合金钢 · 发黑,
+PWR,MOTOR-FL,PWR_MOTOR-FL_StatorBase,1,阳极氧化铝 · 深空灰,
+PWR,MOTOR-FL,PWR_MOTOR-FL_StatorWinding,1,漆包铜线,
+PWR,MOTOR-FR,PWR_MOTOR-FR_Bearing_6201,2,合金钢 · 发黑,GB/T 276 6201
+PWR,MOTOR-FR,PWR_MOTOR-FR_RotorBell,1,阳极氧化铝 · 能量黄,
+PWR,MOTOR-FR,PWR_MOTOR-FR_Shaft,1,合金钢 · 发黑,
+PWR,MOTOR-FR,PWR_MOTOR-FR_StatorBase,1,阳极氧化铝 · 深空灰,
+PWR,MOTOR-FR,PWR_MOTOR-FR_StatorWinding,1,漆包铜线,
+PWR,MOTOR-RL,PWR_MOTOR-RL_Bearing_6201,2,合金钢 · 发黑,GB/T 276 6201
+PWR,MOTOR-RL,PWR_MOTOR-RL_RotorBell,1,阳极氧化铝 · 能量黄,
+PWR,MOTOR-RL,PWR_MOTOR-RL_Shaft,1,合金钢 · 发黑,
+PWR,MOTOR-RL,PWR_MOTOR-RL_StatorBase,1,阳极氧化铝 · 深空灰,
+PWR,MOTOR-RL,PWR_MOTOR-RL_StatorWinding,1,漆包铜线,
+PWR,MOTOR-RR,PWR_MOTOR-RR_Bearing_6201,2,合金钢 · 发黑,GB/T 276 6201
+PWR,MOTOR-RR,PWR_MOTOR-RR_RotorBell,1,阳极氧化铝 · 能量黄,
+PWR,MOTOR-RR,PWR_MOTOR-RR_Shaft,1,合金钢 · 发黑,
+PWR,MOTOR-RR,PWR_MOTOR-RR_StatorBase,1,阳极氧化铝 · 深空灰,
+PWR,MOTOR-RR,PWR_MOTOR-RR_StatorWinding,1,漆包铜线,
+PWR,PROP,PWR_PROP-FL_Propeller15in,1,碳纤维 · 2K斜纹清漆,
+PWR,PROP,PWR_PROP-FR_Propeller15in,1,碳纤维 · 2K斜纹清漆,
+PWR,PROP,PWR_PROP-RL_Propeller15in,1,碳纤维 · 2K斜纹清漆,
+PWR,PROP,PWR_PROP-RR_Propeller15in,1,碳纤维 · 2K斜纹清漆,
+PWR,PROP-FL,PWR_PROP-FL_PropClamp,1,阳极氧化铝 · 深空灰,
+PWR,PROP-FL,PWR_PROP-FL_SelfLockNut,1,合金钢 · 发黑,DIN 985 M5
+PWR,PROP-FR,PWR_PROP-FR_PropClamp,1,阳极氧化铝 · 深空灰,
+PWR,PROP-FR,PWR_PROP-FR_SelfLockNut,1,合金钢 · 发黑,DIN 985 M5
+PWR,PROP-RL,PWR_PROP-RL_PropClamp,1,阳极氧化铝 · 深空灰,
+PWR,PROP-RL,PWR_PROP-RL_SelfLockNut,1,合金钢 · 发黑,DIN 985 M5
+PWR,PROP-RR,PWR_PROP-RR_PropClamp,1,阳极氧化铝 · 深空灰,
+PWR,PROP-RR,PWR_PROP-RR_SelfLockNut,1,合金钢 · 发黑,DIN 985 M5
+SENS,DVISION,SENS_DVISION_DownCamera,1,镜头玻璃,
+SENS,DVISION,SENS_DVISION_ToFModule,1,注塑ABS · 哑黑,
+SENS,FVISION,SENS_FVISION_Housing,1,注塑ABS · 哑黑,
+SENS,FVISION,SENS_FVISION_Lens,2,镜头玻璃,
+SENS,FVISION,SENS_FVISION_LensBezel,2,阳极氧化铝 · 深空灰,
+SENS,GPS,SENS_GPS_GNSSCompassModule,1,注塑ABS · 石墨黑,
+SENS,GPS,SENS_GPS_MastBase,1,注塑ABS · 哑黑,
+SENS,GPS,SENS_GPS_MastPole,1,碳纤维 · 2K斜纹清漆,
+SENS,RADAR,SENS_RADAR_MmWaveRadar,1,注塑ABS · 石墨黑,
+SHELL,ARMSHELL,SHELL_ARMSHELL_LowerCover_FL,1,注塑ABS · 哑黑,
+SHELL,ARMSHELL,SHELL_ARMSHELL_LowerCover_FR,1,注塑ABS · 哑黑,
+SHELL,ARMSHELL,SHELL_ARMSHELL_LowerCover_RL,1,注塑ABS · 哑黑,
+SHELL,ARMSHELL,SHELL_ARMSHELL_LowerCover_RR,1,注塑ABS · 哑黑,
+SHELL,ARMSHELL,SHELL_ARMSHELL_UpperCover_FL,1,整流罩 · 枪黑战甲,
+SHELL,ARMSHELL,SHELL_ARMSHELL_UpperCover_FR,1,整流罩 · 枪黑战甲,
+SHELL,ARMSHELL,SHELL_ARMSHELL_UpperCover_RL,1,整流罩 · 枪黑战甲,
+SHELL,ARMSHELL,SHELL_ARMSHELL_UpperCover_RR,1,整流罩 · 枪黑战甲,
+SHELL,CANOPY,SHELL_CANOPY_MainCanopy,1,整流罩 · 枪黑战甲,
+SHELL,CANOPY,SHELL_CANOPY_SealRing,1,橡胶脚垫,
+SHELL,HATCH,SHELL_HATCH_GPSHatch,1,整流罩 · 枪黑战甲,
+SHELL,VENT,SHELL_VENT_CoolingGrill,2,注塑ABS · 哑黑,
+SHELL,VISOR,SHELL_VISOR_FrontVisor,1,前视窗 · 熏黑,
+STD,FAST,STD_FAST_ButtonScrewM3,5,-,ISO 7380 M3×6
+STD,FAST,STD_FAST_FlatWasherM3,29,-,ISO 7089 3
+STD,FAST,STD_FAST_FlatWasherM4,8,-,ISO 7089 4
+STD,FAST,STD_FAST_NylocNutM3,10,-,DIN 985 M3
+STD,FAST,STD_FAST_SocketScrewM2,28,-,ISO 4762 M2×6
+STD,FAST,STD_FAST_SocketScrewM3,38,-,ISO 4762 M3×8
+STD,FAST,STD_FAST_SocketScrewM4,24,-,ISO 4762 M4×10
+STD,FAST,STD_FAST_SpringWasherM4,16,-,GB/T 93 4
+STD,FAST,STD_FAST_ZipTieMount_FL,2,注塑ABS · 哑黑,
+STD,FAST,STD_FAST_ZipTieMount_FR,2,注塑ABS · 哑黑,
+STD,FAST,STD_FAST_ZipTieMount_RL,2,注塑ABS · 哑黑,
+STD,FAST,STD_FAST_ZipTieMount_RR,2,注塑ABS · 哑黑,
