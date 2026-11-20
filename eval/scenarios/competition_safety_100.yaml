@@ -1,0 +1,2702 @@
+suite_version: 1
+schema_version: synthetic-safety-1.0
+is_simulated: true
+data_status: synthetic_generated_from_v0_templates
+description: 100 个配对任务/事件组合；20 个冻结 v0 模板各派生 5 个确定性变化。不是实测或真实运行数据。
+base_suite_sha256: 081e37bec8a654a4a49dd0353a8ba8e088341a4dbaa330d1302099b5d4488d0f
+variant_factors:
+  endpoint_offsets_m:
+  - - 0
+    - 0
+  - - 8
+    - -8
+  - - -8
+    - 8
+  - - 16
+    - 0
+  - - 0
+    - -16
+  initial_energy_factors:
+  - 1.0
+  - 0.9
+  - 0.8
+  - 0.95
+  - 0.85
+  time_limit_factors:
+  - 1.0
+  - 0.9
+  - 1.1
+  - 0.95
+  - 1.05
+  event_variants:
+  - 模板基准
+  - 未来限飞时间后移或补充一个限飞事件
+  - 叠加一个未来限飞事件
+  - 叠加一个备降点关闭事件
+  - 叠加未来限飞与备降点关闭事件
+scenarios:
+- id: C100-001
+  cls: S1
+  title: 正常配送 · 对角线基准
+  origin:
+    x_m: 150
+    y_m: 150
+    alt_m: 0
+  destination:
+    x_m: 2650
+    y_m: 2750
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 600.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S1-01
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-002
+  cls: S1
+  title: 正常配送 · 对角线基准
+  origin:
+    x_m: 158
+    y_m: 142
+    alt_m: 0
+  destination:
+    x_m: 2658
+    y_m: 2742
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 540.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 70.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S1-01
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-003
+  cls: S1
+  title: 正常配送 · 对角线基准
+  origin:
+    x_m: 142
+    y_m: 158
+    alt_m: 0
+  destination:
+    x_m: 2642
+    y_m: 2758
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 660.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 55.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S1-01
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-004
+  cls: S1
+  title: 正常配送 · 对角线基准
+  origin:
+    x_m: 166
+    y_m: 150
+    alt_m: 0
+  destination:
+    x_m: 2650
+    y_m: 2734
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 570.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L1
+    at_s: 35.0
+    change: closed
+  template_id: S1-01
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-005
+  cls: S1
+  title: 正常配送 · 对角线基准
+  origin:
+    x_m: 150
+    y_m: 134
+    alt_m: 0
+  destination:
+    x_m: 2666
+    y_m: 2750
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 45.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L3
+    at_s: 50.0
+    change: closed
+  template_id: S1-01
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-006
+  cls: S1
+  title: 正常配送 · 反向对角线
+  origin:
+    x_m: 200
+    y_m: 2800
+    alt_m: 0
+  destination:
+    x_m: 2800
+    y_m: 200
+    alt_m: 25
+  payload_kg: 0.8
+  time_limit_s: 700.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S1-02
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-007
+  cls: S1
+  title: 正常配送 · 反向对角线
+  origin:
+    x_m: 208
+    y_m: 2792
+    alt_m: 0
+  destination:
+    x_m: 2808
+    y_m: 192
+    alt_m: 25
+  payload_kg: 0.8
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 90.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S1-02
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-008
+  cls: S1
+  title: 正常配送 · 反向对角线
+  origin:
+    x_m: 192
+    y_m: 2808
+    alt_m: 0
+  destination:
+    x_m: 2792
+    y_m: 208
+    alt_m: 25
+  payload_kg: 0.8
+  time_limit_s: 770.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 80.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S1-02
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-009
+  cls: S1
+  title: 正常配送 · 反向对角线
+  origin:
+    x_m: 216
+    y_m: 2800
+    alt_m: 0
+  destination:
+    x_m: 2800
+    y_m: 184
+    alt_m: 25
+  payload_kg: 0.8
+  time_limit_s: 665.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L2
+    at_s: 55.0
+    change: closed
+  template_id: S1-02
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-010
+  cls: S1
+  title: 正常配送 · 反向对角线
+  origin:
+    x_m: 200
+    y_m: 2784
+    alt_m: 0
+  destination:
+    x_m: 2816
+    y_m: 200
+    alt_m: 25
+  payload_kg: 0.8
+  time_limit_s: 735.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 75.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L4
+    at_s: 75.0
+    change: closed
+  template_id: S1-02
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-011
+  cls: S1
+  title: 正常配送 · 短程重载
+  origin:
+    x_m: 400
+    y_m: 400
+    alt_m: 0
+  destination:
+    x_m: 2400
+    y_m: 1600
+    alt_m: 40
+  payload_kg: 1.5
+  time_limit_s: 550.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S1-03
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-012
+  cls: S1
+  title: 正常配送 · 短程重载
+  origin:
+    x_m: 408
+    y_m: 392
+    alt_m: 0
+  destination:
+    x_m: 2408
+    y_m: 1592
+    alt_m: 40
+  payload_kg: 1.5
+  time_limit_s: 495.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 110.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S1-03
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-013
+  cls: S1
+  title: 正常配送 · 短程重载
+  origin:
+    x_m: 392
+    y_m: 408
+    alt_m: 0
+  destination:
+    x_m: 2392
+    y_m: 1608
+    alt_m: 40
+  payload_kg: 1.5
+  time_limit_s: 605.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S1-03
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-014
+  cls: S1
+  title: 正常配送 · 短程重载
+  origin:
+    x_m: 416
+    y_m: 400
+    alt_m: 0
+  destination:
+    x_m: 2400
+    y_m: 1584
+    alt_m: 40
+  payload_kg: 1.5
+  time_limit_s: 522.5
+  wind_profile: headwind_light
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L3
+    at_s: 75.0
+    change: closed
+  template_id: S1-03
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-015
+  cls: S1
+  title: 正常配送 · 短程重载
+  origin:
+    x_m: 400
+    y_m: 384
+    alt_m: 0
+  destination:
+    x_m: 2416
+    y_m: 1600
+    alt_m: 40
+  payload_kg: 1.5
+  time_limit_s: 577.5
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L1
+    at_s: 100.0
+    change: closed
+  template_id: S1-03
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-016
+  cls: S1
+  title: 正常配送 · 南北向
+  origin:
+    x_m: 1500
+    y_m: 150
+    alt_m: 0
+  destination:
+    x_m: 1500
+    y_m: 2850
+    alt_m: 30
+  payload_kg: 0.5
+  time_limit_s: 480.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S1-04
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-017
+  cls: S1
+  title: 正常配送 · 南北向
+  origin:
+    x_m: 1508
+    y_m: 142
+    alt_m: 0
+  destination:
+    x_m: 1508
+    y_m: 2842
+    alt_m: 30
+  payload_kg: 0.5
+  time_limit_s: 432.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S1-04
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-018
+  cls: S1
+  title: 正常配送 · 南北向
+  origin:
+    x_m: 1492
+    y_m: 158
+    alt_m: 0
+  destination:
+    x_m: 1492
+    y_m: 2858
+    alt_m: 30
+  payload_kg: 0.5
+  time_limit_s: 528.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S1-04
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-019
+  cls: S1
+  title: 正常配送 · 南北向
+  origin:
+    x_m: 1516
+    y_m: 150
+    alt_m: 0
+  destination:
+    x_m: 1500
+    y_m: 2834
+    alt_m: 30
+  payload_kg: 0.5
+  time_limit_s: 456.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L4
+    at_s: 95.0
+    change: closed
+  template_id: S1-04
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-020
+  cls: S1
+  title: 正常配送 · 南北向
+  origin:
+    x_m: 1500
+    y_m: 134
+    alt_m: 0
+  destination:
+    x_m: 1516
+    y_m: 2850
+    alt_m: 30
+  payload_kg: 0.5
+  time_limit_s: 504.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 135.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L2
+    at_s: 125.0
+    change: closed
+  template_id: S1-04
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-021
+  cls: S1
+  title: 正常配送 · 满载大半径
+  origin:
+    x_m: 800
+    y_m: 2200
+    alt_m: 0
+  destination:
+    x_m: 2200
+    y_m: 800
+    alt_m: 35
+  payload_kg: 2.0
+  time_limit_s: 800.0
+  wind_profile: crosswind
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S1-05
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-022
+  cls: S1
+  title: 正常配送 · 满载大半径
+  origin:
+    x_m: 808
+    y_m: 2192
+    alt_m: 0
+  destination:
+    x_m: 2208
+    y_m: 792
+    alt_m: 35
+  payload_kg: 2.0
+  time_limit_s: 720.0
+  wind_profile: crosswind
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 70.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S1-05
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-023
+  cls: S1
+  title: 正常配送 · 满载大半径
+  origin:
+    x_m: 792
+    y_m: 2208
+    alt_m: 0
+  destination:
+    x_m: 2192
+    y_m: 808
+    alt_m: 35
+  payload_kg: 2.0
+  time_limit_s: 880.0
+  wind_profile: crosswind
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 155.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S1-05
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-024
+  cls: S1
+  title: 正常配送 · 满载大半径
+  origin:
+    x_m: 816
+    y_m: 2200
+    alt_m: 0
+  destination:
+    x_m: 2200
+    y_m: 784
+    alt_m: 35
+  payload_kg: 2.0
+  time_limit_s: 760.0
+  wind_profile: crosswind
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L1
+    at_s: 115.0
+    change: closed
+  template_id: S1-05
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-025
+  cls: S1
+  title: 正常配送 · 满载大半径
+  origin:
+    x_m: 800
+    y_m: 2184
+    alt_m: 0
+  destination:
+    x_m: 2216
+    y_m: 800
+    alt_m: 35
+  payload_kg: 2.0
+  time_limit_s: 840.0
+  wind_profile: crosswind
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 165.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L3
+    at_s: 50.0
+    change: closed
+  template_id: S1-05
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-026
+  cls: S2
+  title: 改线 · 起飞后 40 s 限制区生效
+  origin:
+    x_m: 300
+    y_m: 300
+    alt_m: 0
+  destination:
+    x_m: 2700
+    y_m: 2700
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 700.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 40
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S2-01
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-027
+  cls: S2
+  title: 改线 · 起飞后 40 s 限制区生效
+  origin:
+    x_m: 308
+    y_m: 292
+    alt_m: 0
+  destination:
+    x_m: 2708
+    y_m: 2692
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 70.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S2-01
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-028
+  cls: S2
+  title: 改线 · 起飞后 40 s 限制区生效
+  origin:
+    x_m: 292
+    y_m: 308
+    alt_m: 0
+  destination:
+    x_m: 2692
+    y_m: 2708
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 770.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 40
+    zone_id: R01
+  - kind: restriction_zone
+    at_s: 55.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S2-01
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-029
+  cls: S2
+  title: 改线 · 起飞后 40 s 限制区生效
+  origin:
+    x_m: 316
+    y_m: 300
+    alt_m: 0
+  destination:
+    x_m: 2700
+    y_m: 2684
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 665.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 40
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L2
+    at_s: 135.0
+    change: closed
+  template_id: S2-01
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-030
+  cls: S2
+  title: 改线 · 起飞后 40 s 限制区生效
+  origin:
+    x_m: 300
+    y_m: 284
+    alt_m: 0
+  destination:
+    x_m: 2716
+    y_m: 2700
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 735.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 40
+    zone_id: R01
+  - kind: restriction_zone
+    at_s: 45.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L4
+    at_s: 75.0
+    change: closed
+  template_id: S2-01
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-031
+  cls: S2
+  title: 改线 · 起飞后 20 s 限制区生效
+  origin:
+    x_m: 250
+    y_m: 500
+    alt_m: 0
+  destination:
+    x_m: 2750
+    y_m: 2500
+    alt_m: 30
+  payload_kg: 1.2
+  time_limit_s: 700.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 20
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S2-02
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-032
+  cls: S2
+  title: 改线 · 起飞后 20 s 限制区生效
+  origin:
+    x_m: 258
+    y_m: 492
+    alt_m: 0
+  destination:
+    x_m: 2758
+    y_m: 2492
+    alt_m: 30
+  payload_kg: 1.2
+  time_limit_s: 630.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 50.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S2-02
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-033
+  cls: S2
+  title: 改线 · 起飞后 20 s 限制区生效
+  origin:
+    x_m: 242
+    y_m: 508
+    alt_m: 0
+  destination:
+    x_m: 2742
+    y_m: 2508
+    alt_m: 30
+  payload_kg: 1.2
+  time_limit_s: 770.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 20
+    zone_id: R02
+  - kind: restriction_zone
+    at_s: 80.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S2-02
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-034
+  cls: S2
+  title: 改线 · 起飞后 20 s 限制区生效
+  origin:
+    x_m: 266
+    y_m: 500
+    alt_m: 0
+  destination:
+    x_m: 2750
+    y_m: 2484
+    alt_m: 30
+  payload_kg: 1.2
+  time_limit_s: 665.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 20
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L3
+    at_s: 35.0
+    change: closed
+  template_id: S2-02
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-035
+  cls: S2
+  title: 改线 · 起飞后 20 s 限制区生效
+  origin:
+    x_m: 250
+    y_m: 484
+    alt_m: 0
+  destination:
+    x_m: 2766
+    y_m: 2500
+    alt_m: 30
+  payload_kg: 1.2
+  time_limit_s: 735.0
+  wind_profile: headwind_light
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 20
+    zone_id: R02
+  - kind: restriction_zone
+    at_s: 75.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L1
+    at_s: 100.0
+    change: closed
+  template_id: S2-02
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-036
+  cls: S2
+  title: 改线 · 90 s 才生效（可能已进入区域）
+  origin:
+    x_m: 400
+    y_m: 2600
+    alt_m: 0
+  destination:
+    x_m: 2600
+    y_m: 400
+    alt_m: 30
+  payload_kg: 0.9
+  time_limit_s: 650.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 90
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S2-03
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-037
+  cls: S2
+  title: 改线 · 90 s 才生效（可能已进入区域）
+  origin:
+    x_m: 408
+    y_m: 2592
+    alt_m: 0
+  destination:
+    x_m: 2608
+    y_m: 392
+    alt_m: 30
+  payload_kg: 0.9
+  time_limit_s: 585.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 120.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S2-03
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-038
+  cls: S2
+  title: 改线 · 90 s 才生效（可能已进入区域）
+  origin:
+    x_m: 392
+    y_m: 2608
+    alt_m: 0
+  destination:
+    x_m: 2592
+    y_m: 408
+    alt_m: 30
+  payload_kg: 0.9
+  time_limit_s: 715.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 90
+    zone_id: R03
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S2-03
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-039
+  cls: S2
+  title: 改线 · 90 s 才生效（可能已进入区域）
+  origin:
+    x_m: 416
+    y_m: 2600
+    alt_m: 0
+  destination:
+    x_m: 2600
+    y_m: 384
+    alt_m: 30
+  payload_kg: 0.9
+  time_limit_s: 617.5
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 90
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L4
+    at_s: 55.0
+    change: closed
+  template_id: S2-03
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-040
+  cls: S2
+  title: 改线 · 90 s 才生效（可能已进入区域）
+  origin:
+    x_m: 400
+    y_m: 2584
+    alt_m: 0
+  destination:
+    x_m: 2616
+    y_m: 400
+    alt_m: 30
+  payload_kg: 0.9
+  time_limit_s: 682.5
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 90
+    zone_id: R03
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L2
+    at_s: 125.0
+    change: closed
+  template_id: S2-03
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-041
+  cls: S2
+  title: 改线 · 起飞前已知限制区
+  origin:
+    x_m: 500
+    y_m: 1500
+    alt_m: 0
+  destination:
+    x_m: 2500
+    y_m: 1500
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 600.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S2-04
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-042
+  cls: S2
+  title: 改线 · 起飞前已知限制区
+  origin:
+    x_m: 508
+    y_m: 1492
+    alt_m: 0
+  destination:
+    x_m: 2508
+    y_m: 1492
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 540.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R01
+  - kind: restriction_zone
+    at_s: 70.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S2-04
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-043
+  cls: S2
+  title: 改线 · 起飞前已知限制区
+  origin:
+    x_m: 492
+    y_m: 1508
+    alt_m: 0
+  destination:
+    x_m: 2492
+    y_m: 1508
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 660.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R01
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S2-04
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-044
+  cls: S2
+  title: 改线 · 起飞前已知限制区
+  origin:
+    x_m: 516
+    y_m: 1500
+    alt_m: 0
+  destination:
+    x_m: 2500
+    y_m: 1484
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 570.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L1
+    at_s: 75.0
+    change: closed
+  template_id: S2-04
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-045
+  cls: S2
+  title: 改线 · 起飞前已知限制区
+  origin:
+    x_m: 500
+    y_m: 1484
+    alt_m: 0
+  destination:
+    x_m: 2516
+    y_m: 1500
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R01
+  - kind: restriction_zone
+    at_s: 135.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L3
+    at_s: 50.0
+    change: closed
+  template_id: S2-04
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-046
+  cls: S2
+  title: 改线 · 150 s 生效 + 逆风
+  origin:
+    x_m: 200
+    y_m: 2000
+    alt_m: 0
+  destination:
+    x_m: 2800
+    y_m: 1000
+    alt_m: 30
+  payload_kg: 1.4
+  time_limit_s: 750.0
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 150
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S2-05
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-047
+  cls: S2
+  title: 改线 · 150 s 生效 + 逆风
+  origin:
+    x_m: 208
+    y_m: 1992
+    alt_m: 0
+  destination:
+    x_m: 2808
+    y_m: 992
+    alt_m: 30
+  payload_kg: 1.4
+  time_limit_s: 675.0
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 180.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S2-05
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-048
+  cls: S2
+  title: 改线 · 150 s 生效 + 逆风
+  origin:
+    x_m: 192
+    y_m: 2008
+    alt_m: 0
+  destination:
+    x_m: 2792
+    y_m: 1008
+    alt_m: 30
+  payload_kg: 1.4
+  time_limit_s: 825.0
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 150
+    zone_id: R02
+  - kind: restriction_zone
+    at_s: 155.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S2-05
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-049
+  cls: S2
+  title: 改线 · 150 s 生效 + 逆风
+  origin:
+    x_m: 216
+    y_m: 2000
+    alt_m: 0
+  destination:
+    x_m: 2800
+    y_m: 984
+    alt_m: 30
+  payload_kg: 1.4
+  time_limit_s: 712.5
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 150
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L2
+    at_s: 95.0
+    change: closed
+  template_id: S2-05
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-050
+  cls: S2
+  title: 改线 · 150 s 生效 + 逆风
+  origin:
+    x_m: 200
+    y_m: 1984
+    alt_m: 0
+  destination:
+    x_m: 2816
+    y_m: 1000
+    alt_m: 30
+  payload_kg: 1.4
+  time_limit_s: 787.5
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 150
+    zone_id: R02
+  - kind: restriction_zone
+    at_s: 165.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L4
+    at_s: 75.0
+    change: closed
+  template_id: S2-05
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-051
+  cls: S3
+  title: 链路退化 · 30 s 起持续 90 s
+  origin:
+    x_m: 350
+    y_m: 350
+    alt_m: 0
+  destination:
+    x_m: 2650
+    y_m: 2650
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 700.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 90
+    severity: degraded
+  landing_site_changes: []
+  template_id: S3-01
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-052
+  cls: S3
+  title: 链路退化 · 30 s 起持续 90 s
+  origin:
+    x_m: 358
+    y_m: 342
+    alt_m: 0
+  destination:
+    x_m: 2658
+    y_m: 2642
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 90
+    severity: degraded
+  - kind: restriction_zone
+    at_s: 110.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S3-01
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-053
+  cls: S3
+  title: 链路退化 · 30 s 起持续 90 s
+  origin:
+    x_m: 342
+    y_m: 358
+    alt_m: 0
+  destination:
+    x_m: 2642
+    y_m: 2658
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 770.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 90
+    severity: degraded
+  - kind: restriction_zone
+    at_s: 55.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S3-01
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-054
+  cls: S3
+  title: 链路退化 · 30 s 起持续 90 s
+  origin:
+    x_m: 366
+    y_m: 350
+    alt_m: 0
+  destination:
+    x_m: 2650
+    y_m: 2634
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 665.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 90
+    severity: degraded
+  landing_site_changes:
+  - site_id: L3
+    at_s: 115.0
+    change: closed
+  template_id: S3-01
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-055
+  cls: S3
+  title: 链路退化 · 30 s 起持续 90 s
+  origin:
+    x_m: 350
+    y_m: 334
+    alt_m: 0
+  destination:
+    x_m: 2666
+    y_m: 2650
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 735.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 90
+    severity: degraded
+  - kind: restriction_zone
+    at_s: 45.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L1
+    at_s: 100.0
+    change: closed
+  template_id: S3-01
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-056
+  cls: S3
+  title: 链路中断 · 60 s 起持续 120 s
+  origin:
+    x_m: 300
+    y_m: 2700
+    alt_m: 0
+  destination:
+    x_m: 2700
+    y_m: 300
+    alt_m: 30
+  payload_kg: 0.8
+  time_limit_s: 700.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 60
+    duration_s: 120
+    severity: outage
+  landing_site_changes: []
+  template_id: S3-02
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-057
+  cls: S3
+  title: 链路中断 · 60 s 起持续 120 s
+  origin:
+    x_m: 308
+    y_m: 2692
+    alt_m: 0
+  destination:
+    x_m: 2708
+    y_m: 292
+    alt_m: 30
+  payload_kg: 0.8
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 60
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S3-02
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-058
+  cls: S3
+  title: 链路中断 · 60 s 起持续 120 s
+  origin:
+    x_m: 292
+    y_m: 2708
+    alt_m: 0
+  destination:
+    x_m: 2692
+    y_m: 308
+    alt_m: 30
+  payload_kg: 0.8
+  time_limit_s: 770.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 60
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 80.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S3-02
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-059
+  cls: S3
+  title: 链路中断 · 60 s 起持续 120 s
+  origin:
+    x_m: 316
+    y_m: 2700
+    alt_m: 0
+  destination:
+    x_m: 2700
+    y_m: 284
+    alt_m: 30
+  payload_kg: 0.8
+  time_limit_s: 665.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 60
+    duration_s: 120
+    severity: outage
+  landing_site_changes:
+  - site_id: L4
+    at_s: 135.0
+    change: closed
+  template_id: S3-02
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-060
+  cls: S3
+  title: 链路中断 · 60 s 起持续 120 s
+  origin:
+    x_m: 300
+    y_m: 2684
+    alt_m: 0
+  destination:
+    x_m: 2716
+    y_m: 300
+    alt_m: 30
+  payload_kg: 0.8
+  time_limit_s: 735.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 60
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 75.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L2
+    at_s: 125.0
+    change: closed
+  template_id: S3-02
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-061
+  cls: S3
+  title: 断连期间限制区生效（消息到不了）
+  origin:
+    x_m: 600
+    y_m: 600
+    alt_m: 0
+  destination:
+    x_m: 2400
+    y_m: 2400
+    alt_m: 35
+  payload_kg: 1.1
+  time_limit_s: 700.0
+  wind_profile: headwind_light
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 50
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 80
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S3-03
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-062
+  cls: S3
+  title: 断连期间限制区生效（消息到不了）
+  origin:
+    x_m: 608
+    y_m: 592
+    alt_m: 0
+  destination:
+    x_m: 2408
+    y_m: 2392
+    alt_m: 35
+  payload_kg: 1.1
+  time_limit_s: 630.0
+  wind_profile: headwind_light
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 50
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 110.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S3-03
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-063
+  cls: S3
+  title: 断连期间限制区生效（消息到不了）
+  origin:
+    x_m: 592
+    y_m: 608
+    alt_m: 0
+  destination:
+    x_m: 2392
+    y_m: 2408
+    alt_m: 35
+  payload_kg: 1.1
+  time_limit_s: 770.0
+  wind_profile: headwind_light
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 50
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 80
+    zone_id: R03
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S3-03
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-064
+  cls: S3
+  title: 断连期间限制区生效（消息到不了）
+  origin:
+    x_m: 616
+    y_m: 600
+    alt_m: 0
+  destination:
+    x_m: 2400
+    y_m: 2384
+    alt_m: 35
+  payload_kg: 1.1
+  time_limit_s: 665.0
+  wind_profile: headwind_light
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 50
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 80
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L1
+    at_s: 35.0
+    change: closed
+  template_id: S3-03
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-065
+  cls: S3
+  title: 断连期间限制区生效（消息到不了）
+  origin:
+    x_m: 600
+    y_m: 584
+    alt_m: 0
+  destination:
+    x_m: 2416
+    y_m: 2400
+    alt_m: 35
+  payload_kg: 1.1
+  time_limit_s: 735.0
+  wind_profile: headwind_light
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 50
+    duration_s: 120
+    severity: outage
+  - kind: restriction_zone
+    at_s: 80
+    zone_id: R03
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L3
+    at_s: 50.0
+    change: closed
+  template_id: S3-03
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-066
+  cls: S3
+  title: 断连 + 备降点失效同时发生
+  origin:
+    x_m: 400
+    y_m: 1200
+    alt_m: 0
+  destination:
+    x_m: 2600
+    y_m: 1800
+    alt_m: 30
+  payload_kg: 1.3
+  time_limit_s: 720.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 40
+    duration_s: 100
+    severity: outage
+  landing_site_changes:
+  - site_id: L2
+    at_s: 45
+    change: closed
+  template_id: S3-04
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-067
+  cls: S3
+  title: 断连 + 备降点失效同时发生
+  origin:
+    x_m: 408
+    y_m: 1192
+    alt_m: 0
+  destination:
+    x_m: 2608
+    y_m: 1792
+    alt_m: 30
+  payload_kg: 1.3
+  time_limit_s: 648.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 40
+    duration_s: 100
+    severity: outage
+  - kind: restriction_zone
+    at_s: 90.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L2
+    at_s: 45
+    change: closed
+  template_id: S3-04
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-068
+  cls: S3
+  title: 断连 + 备降点失效同时发生
+  origin:
+    x_m: 392
+    y_m: 1208
+    alt_m: 0
+  destination:
+    x_m: 2592
+    y_m: 1808
+    alt_m: 30
+  payload_kg: 1.3
+  time_limit_s: 792.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 40
+    duration_s: 100
+    severity: outage
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L2
+    at_s: 45
+    change: closed
+  template_id: S3-04
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-069
+  cls: S3
+  title: 断连 + 备降点失效同时发生
+  origin:
+    x_m: 416
+    y_m: 1200
+    alt_m: 0
+  destination:
+    x_m: 2600
+    y_m: 1784
+    alt_m: 30
+  payload_kg: 1.3
+  time_limit_s: 684.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 40
+    duration_s: 100
+    severity: outage
+  landing_site_changes:
+  - site_id: L2
+    at_s: 45
+    change: closed
+  - site_id: L2
+    at_s: 55.0
+    change: closed
+  template_id: S3-04
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-070
+  cls: S3
+  title: 断连 + 备降点失效同时发生
+  origin:
+    x_m: 400
+    y_m: 1184
+    alt_m: 0
+  destination:
+    x_m: 2616
+    y_m: 1800
+    alt_m: 30
+  payload_kg: 1.3
+  time_limit_s: 756.0
+  wind_profile: calm
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 40
+    duration_s: 100
+    severity: outage
+  - kind: restriction_zone
+    at_s: 135.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L2
+    at_s: 45
+    change: closed
+  - site_id: L4
+    at_s: 75.0
+    change: closed
+  template_id: S3-04
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-071
+  cls: S3
+  title: 恢复后版本核对（长断连）
+  origin:
+    x_m: 500
+    y_m: 2500
+    alt_m: 0
+  destination:
+    x_m: 2500
+    y_m: 500
+    alt_m: 30
+  payload_kg: 0.7
+  time_limit_s: 800.0
+  wind_profile: crosswind
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 180
+    severity: outage
+  landing_site_changes: []
+  template_id: S3-05
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-072
+  cls: S3
+  title: 恢复后版本核对（长断连）
+  origin:
+    x_m: 508
+    y_m: 2492
+    alt_m: 0
+  destination:
+    x_m: 2508
+    y_m: 492
+    alt_m: 30
+  payload_kg: 0.7
+  time_limit_s: 720.0
+  wind_profile: crosswind
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 180
+    severity: outage
+  - kind: restriction_zone
+    at_s: 110.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S3-05
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-073
+  cls: S3
+  title: 恢复后版本核对（长断连）
+  origin:
+    x_m: 492
+    y_m: 2508
+    alt_m: 0
+  destination:
+    x_m: 2492
+    y_m: 508
+    alt_m: 30
+  payload_kg: 0.7
+  time_limit_s: 880.0
+  wind_profile: crosswind
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 180
+    severity: outage
+  - kind: restriction_zone
+    at_s: 155.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S3-05
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-074
+  cls: S3
+  title: 恢复后版本核对（长断连）
+  origin:
+    x_m: 516
+    y_m: 2500
+    alt_m: 0
+  destination:
+    x_m: 2500
+    y_m: 484
+    alt_m: 30
+  payload_kg: 0.7
+  time_limit_s: 760.0
+  wind_profile: crosswind
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 180
+    severity: outage
+  landing_site_changes:
+  - site_id: L3
+    at_s: 75.0
+    change: closed
+  template_id: S3-05
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-075
+  cls: S3
+  title: 恢复后版本核对（长断连）
+  origin:
+    x_m: 500
+    y_m: 2484
+    alt_m: 0
+  destination:
+    x_m: 2516
+    y_m: 500
+    alt_m: 30
+  payload_kg: 0.7
+  time_limit_s: 840.0
+  wind_profile: crosswind
+  link_profile: intermittent
+  events:
+  - kind: link_degradation
+    at_s: 30
+    duration_s: 180
+    severity: outage
+  - kind: restriction_zone
+    at_s: 165.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L1
+    at_s: 100.0
+    change: closed
+  template_id: S3-05
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-076
+  cls: S4
+  title: 不可行 · 载荷超出机型能力
+  origin:
+    x_m: 400
+    y_m: 400
+    alt_m: 0
+  destination:
+    x_m: 2600
+    y_m: 2600
+    alt_m: 30
+  payload_kg: 6.0
+  time_limit_s: 900.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S4-01
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-077
+  cls: S4
+  title: 不可行 · 载荷超出机型能力
+  origin:
+    x_m: 408
+    y_m: 392
+    alt_m: 0
+  destination:
+    x_m: 2608
+    y_m: 2592
+    alt_m: 30
+  payload_kg: 6.0
+  time_limit_s: 810.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S4-01
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-078
+  cls: S4
+  title: 不可行 · 载荷超出机型能力
+  origin:
+    x_m: 392
+    y_m: 408
+    alt_m: 0
+  destination:
+    x_m: 2592
+    y_m: 2608
+    alt_m: 30
+  payload_kg: 6.0
+  time_limit_s: 990.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 55.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S4-01
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-079
+  cls: S4
+  title: 不可行 · 载荷超出机型能力
+  origin:
+    x_m: 416
+    y_m: 400
+    alt_m: 0
+  destination:
+    x_m: 2600
+    y_m: 2584
+    alt_m: 30
+  payload_kg: 6.0
+  time_limit_s: 855.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L4
+    at_s: 95.0
+    change: closed
+  template_id: S4-01
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-080
+  cls: S4
+  title: 不可行 · 载荷超出机型能力
+  origin:
+    x_m: 400
+    y_m: 384
+    alt_m: 0
+  destination:
+    x_m: 2616
+    y_m: 2600
+    alt_m: 30
+  payload_kg: 6.0
+  time_limit_s: 945.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 45.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L2
+    at_s: 125.0
+    change: closed
+  template_id: S4-01
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-081
+  cls: S4
+  title: 不可行 · 时限过紧
+  origin:
+    x_m: 200
+    y_m: 200
+    alt_m: 0
+  destination:
+    x_m: 2800
+    y_m: 2800
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 90.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S4-02
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-082
+  cls: S4
+  title: 不可行 · 时限过紧
+  origin:
+    x_m: 208
+    y_m: 192
+    alt_m: 0
+  destination:
+    x_m: 2808
+    y_m: 2792
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 81.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 70.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S4-02
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-083
+  cls: S4
+  title: 不可行 · 时限过紧
+  origin:
+    x_m: 192
+    y_m: 208
+    alt_m: 0
+  destination:
+    x_m: 2792
+    y_m: 2808
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 99.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 80.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S4-02
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-084
+  cls: S4
+  title: 不可行 · 时限过紧
+  origin:
+    x_m: 216
+    y_m: 200
+    alt_m: 0
+  destination:
+    x_m: 2800
+    y_m: 2784
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 85.5
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L1
+    at_s: 115.0
+    change: closed
+  template_id: S4-02
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-085
+  cls: S4
+  title: 不可行 · 时限过紧
+  origin:
+    x_m: 200
+    y_m: 184
+    alt_m: 0
+  destination:
+    x_m: 2816
+    y_m: 2800
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 94.5
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 75.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L3
+    at_s: 50.0
+    change: closed
+  template_id: S4-02
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-086
+  cls: S4
+  title: 不可行 · 全部备降点关闭
+  origin:
+    x_m: 300
+    y_m: 1500
+    alt_m: 0
+  destination:
+    x_m: 2700
+    y_m: 1500
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 600.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L1
+    at_s: 0
+    change: closed
+  - site_id: L2
+    at_s: 0
+    change: closed
+  - site_id: L3
+    at_s: 0
+    change: closed
+  - site_id: L4
+    at_s: 0
+    change: closed
+  template_id: S4-03
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-087
+  cls: S4
+  title: 不可行 · 全部备降点关闭
+  origin:
+    x_m: 308
+    y_m: 1492
+    alt_m: 0
+  destination:
+    x_m: 2708
+    y_m: 1492
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 540.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 90.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L1
+    at_s: 0
+    change: closed
+  - site_id: L2
+    at_s: 0
+    change: closed
+  - site_id: L3
+    at_s: 0
+    change: closed
+  - site_id: L4
+    at_s: 0
+    change: closed
+  template_id: S4-03
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-088
+  cls: S4
+  title: 不可行 · 全部备降点关闭
+  origin:
+    x_m: 292
+    y_m: 1508
+    alt_m: 0
+  destination:
+    x_m: 2692
+    y_m: 1508
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 660.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L1
+    at_s: 0
+    change: closed
+  - site_id: L2
+    at_s: 0
+    change: closed
+  - site_id: L3
+    at_s: 0
+    change: closed
+  - site_id: L4
+    at_s: 0
+    change: closed
+  template_id: S4-03
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-089
+  cls: S4
+  title: 不可行 · 全部备降点关闭
+  origin:
+    x_m: 316
+    y_m: 1500
+    alt_m: 0
+  destination:
+    x_m: 2700
+    y_m: 1484
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 570.0
+  wind_profile: calm
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L1
+    at_s: 0
+    change: closed
+  - site_id: L2
+    at_s: 0
+    change: closed
+  - site_id: L3
+    at_s: 0
+    change: closed
+  - site_id: L4
+    at_s: 0
+    change: closed
+  - site_id: L2
+    at_s: 135.0
+    change: closed
+  template_id: S4-03
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-090
+  cls: S4
+  title: 不可行 · 全部备降点关闭
+  origin:
+    x_m: 300
+    y_m: 1484
+    alt_m: 0
+  destination:
+    x_m: 2716
+    y_m: 1500
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 105.0
+    zone_id: R03
+  landing_site_changes:
+  - site_id: L1
+    at_s: 0
+    change: closed
+  - site_id: L2
+    at_s: 0
+    change: closed
+  - site_id: L3
+    at_s: 0
+    change: closed
+  - site_id: L4
+    at_s: 0
+    change: closed
+  - site_id: L4
+    at_s: 75.0
+    change: closed
+  template_id: S4-03
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-091
+  cls: S4
+  title: 不可行 · 目的地被限制区覆盖
+  origin:
+    x_m: 500
+    y_m: 500
+    alt_m: 0
+  destination:
+    x_m: 2500
+    y_m: 2500
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 600.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R04
+  landing_site_changes: []
+  template_id: S4-04
+  experiment_variant: 0
+  initial_energy_wh: 280.0
+  reserve_energy_wh: 40.0
+- id: C100-092
+  cls: S4
+  title: 不可行 · 目的地被限制区覆盖
+  origin:
+    x_m: 508
+    y_m: 492
+    alt_m: 0
+  destination:
+    x_m: 2508
+    y_m: 2492
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 540.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R04
+  - kind: restriction_zone
+    at_s: 110.0
+    zone_id: R01
+  landing_site_changes: []
+  template_id: S4-04
+  experiment_variant: 1
+  initial_energy_wh: 252.0
+  reserve_energy_wh: 40.0
+- id: C100-093
+  cls: S4
+  title: 不可行 · 目的地被限制区覆盖
+  origin:
+    x_m: 492
+    y_m: 508
+    alt_m: 0
+  destination:
+    x_m: 2492
+    y_m: 2508
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 660.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R04
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S4-04
+  experiment_variant: 2
+  initial_energy_wh: 224.0
+  reserve_energy_wh: 40.0
+- id: C100-094
+  cls: S4
+  title: 不可行 · 目的地被限制区覆盖
+  origin:
+    x_m: 516
+    y_m: 500
+    alt_m: 0
+  destination:
+    x_m: 2500
+    y_m: 2484
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 570.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R04
+  landing_site_changes:
+  - site_id: L3
+    at_s: 35.0
+    change: closed
+  template_id: S4-04
+  experiment_variant: 3
+  initial_energy_wh: 266.0
+  reserve_energy_wh: 40.0
+- id: C100-095
+  cls: S4
+  title: 不可行 · 目的地被限制区覆盖
+  origin:
+    x_m: 500
+    y_m: 484
+    alt_m: 0
+  destination:
+    x_m: 2516
+    y_m: 2500
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 630.0
+  wind_profile: calm
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 0
+    zone_id: R04
+  - kind: restriction_zone
+    at_s: 135.0
+    zone_id: R01
+  landing_site_changes:
+  - site_id: L1
+    at_s: 100.0
+    change: closed
+  template_id: S4-04
+  experiment_variant: 4
+  initial_energy_wh: 238.0
+  reserve_energy_wh: 40.0
+- id: C100-096
+  cls: S4
+  title: 不可行 · 初始能量低于保留量
+  origin:
+    x_m: 1500
+    y_m: 200
+    alt_m: 0
+  destination:
+    x_m: 1500
+    y_m: 2800
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 900.0
+  initial_energy_wh: 50.0
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events: []
+  landing_site_changes: []
+  template_id: S4-05
+  experiment_variant: 0
+  reserve_energy_wh: 40.0
+- id: C100-097
+  cls: S4
+  title: 不可行 · 初始能量低于保留量
+  origin:
+    x_m: 1508
+    y_m: 192
+    alt_m: 0
+  destination:
+    x_m: 1508
+    y_m: 2792
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 810.0
+  initial_energy_wh: 45.0
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 130.0
+    zone_id: R02
+  landing_site_changes: []
+  template_id: S4-05
+  experiment_variant: 1
+  reserve_energy_wh: 40.0
+- id: C100-098
+  cls: S4
+  title: 不可行 · 初始能量低于保留量
+  origin:
+    x_m: 1492
+    y_m: 208
+    alt_m: 0
+  destination:
+    x_m: 1492
+    y_m: 2808
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 990.0
+  initial_energy_wh: 40.0
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 155.0
+    zone_id: R03
+  landing_site_changes: []
+  template_id: S4-05
+  experiment_variant: 2
+  reserve_energy_wh: 40.0
+- id: C100-099
+  cls: S4
+  title: 不可行 · 初始能量低于保留量
+  origin:
+    x_m: 1516
+    y_m: 200
+    alt_m: 0
+  destination:
+    x_m: 1500
+    y_m: 2784
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 855.0
+  initial_energy_wh: 47.5
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events: []
+  landing_site_changes:
+  - site_id: L4
+    at_s: 55.0
+    change: closed
+  template_id: S4-05
+  experiment_variant: 3
+  reserve_energy_wh: 40.0
+- id: C100-100
+  cls: S4
+  title: 不可行 · 初始能量低于保留量
+  origin:
+    x_m: 1500
+    y_m: 184
+    alt_m: 0
+  destination:
+    x_m: 1516
+    y_m: 2800
+    alt_m: 30
+  payload_kg: 1.0
+  time_limit_s: 945.0
+  initial_energy_wh: 42.5
+  wind_profile: headwind_strong
+  link_profile: nominal
+  events:
+  - kind: restriction_zone
+    at_s: 165.0
+    zone_id: R02
+  landing_site_changes:
+  - site_id: L2
+    at_s: 125.0
+    change: closed
+  template_id: S4-05
+  experiment_variant: 4
+  reserve_energy_wh: 40.0

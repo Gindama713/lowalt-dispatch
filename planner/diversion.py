@@ -557,6 +557,8 @@ def _accept_state(
     time_limit_s: float | None,
     field_at: Callable[[float], DiversionField | None] | None = None,
     nfz_windows: tuple[tuple[Polygon, float, float | None], ...] = (),
+    enforce_diversion: bool = True,
+    enforce_future_nfz: bool = True,
 ):
     slack_m = grid.res_m * math.sqrt(2.0)
     speed = vehicle.cruise_speed_mps
@@ -568,10 +570,12 @@ def _accept_state(
             return "time"
         # 精确时变禁飞区：到达这一格的时刻若落在某 at_s>0 限制区的激活窗口内，剪枝。
         # 这样航线可以在禁飞区激活前穿过去，不必被永久绕开（保守策略曾把 at_s>0 当全程生效）。
-        if nfz_windows:
+        if enforce_future_nfz and nfz_windows:
             cx, cy = grid.center(node[0], node[1])
             if nfz_active_at(nfz_windows, cx, cy, t_s):
                 return "nfz_time"
+        if not enforce_diversion:
+            return None
         active_field = field_at(t_s) if field_at is not None else field_
         if active_field is None:
             return "no_site"
@@ -595,8 +599,10 @@ def plan_scenario_with_diversion(
     res_m: float = DEFAULT_RES_M,
     clearance_m: float = DEFAULT_CLEARANCE_M,
     sample_step_m: float = SAMPLE_STEP_M,
+    enforce_diversion: bool = True,
+    enforce_future_nfz: bool = True,
 ) -> ScenarioPlan:
-    """带备降硬约束的场景规划。无解时 waypoints 为空，reason 说明原因。"""
+    """约束 A*；可关闭单项搜索约束以进行配对消融实验。"""
     t0 = time.perf_counter()
     algorithm = "astar_diversion"
     initial, reserve = resolve_energy(scenario, vehicle)
@@ -618,7 +624,7 @@ def plan_scenario_with_diversion(
             initial=initial,
             reserve=reserve,
         )
-    if initial < reserve:
+    if enforce_diversion and initial < reserve:
         return _empty_plan(
             algorithm,
             reason=(
@@ -637,7 +643,7 @@ def plan_scenario_with_diversion(
     field_at = make_field_at(grid, sites, schedule)
     field_ = field_at(0.0)
     pads = 0 if field_ is None else sum(len(_pad_cells(grid, site)) for site in sites)
-    if pads == 0:
+    if enforce_diversion and pads == 0:
         detail = "；".join(notes) if notes else "没有备降点，或降落半径内没有可飞单元"
         return _empty_plan(
             algorithm,
@@ -676,7 +682,9 @@ def plan_scenario_with_diversion(
             climb_time_s=climb_time,
             time_limit_s=time_limit,
             field_at=field_at,
-            nfz_windows=nfz_windows,
+            nfz_windows=nfz_windows if enforce_future_nfz else (),
+            enforce_diversion=enforce_diversion,
+            enforce_future_nfz=enforce_future_nfz,
         ),
     )
     if not path.found:
@@ -704,7 +712,7 @@ def plan_scenario_with_diversion(
         sample_step_m=sample_step_m,
         field_at=field_at,
     )
-    if not profile.is_feasible:
+    if enforce_diversion and not profile.is_feasible:
         worst = profile.min_margin_wh
         return _empty_plan(
             algorithm,

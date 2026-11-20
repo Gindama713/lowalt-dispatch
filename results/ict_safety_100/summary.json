@@ -1,0 +1,242 @@
+{
+  "title": "100 配对合成任务/事件安全规划实验",
+  "data_status": "synthetic_generated_from_v0_templates",
+  "scenario_count": 100,
+  "unique_input_count": 100,
+  "base_template_count": 20,
+  "repetitions_per_case_per_arm": 1,
+  "overall": {
+    "geometry_astar": {
+      "task_cases": 100,
+      "returned_routes": 95,
+      "passed_listed_checks_routes": 43,
+      "failed_listed_checks_routes": 52,
+      "no_route": 5,
+      "returned_route_rate": 0.95,
+      "passed_listed_checks_per_case": 0.43,
+      "median_route_length_m": 3014.21,
+      "median_energy_wh_example": 156.711,
+      "median_min_diversion_margin_wh": 11.6325,
+      "latency_p50_ms": 592.22,
+      "latency_p95_ms": 1088.2251,
+      "violation_counts": {
+        "diversion_profile": 39,
+        "time_varying_nfz": 24,
+        "payload": 5,
+        "time_limit": 5
+      }
+    },
+    "full_safety": {
+      "task_cases": 100,
+      "returned_routes": 50,
+      "passed_listed_checks_routes": 50,
+      "failed_listed_checks_routes": 0,
+      "no_route": 50,
+      "returned_route_rate": 0.5,
+      "passed_listed_checks_per_case": 0.5,
+      "median_route_length_m": 2780.1,
+      "median_energy_wh_example": 145.505,
+      "median_min_diversion_margin_wh": 38.68485,
+      "latency_p50_ms": 817.0083,
+      "latency_p95_ms": 2678.4363,
+      "violation_counts": {}
+    },
+    "ablate_no_diversion_search": {
+      "task_cases": 100,
+      "returned_routes": 85,
+      "passed_listed_checks_routes": 50,
+      "failed_listed_checks_routes": 35,
+      "no_route": 15,
+      "returned_route_rate": 0.85,
+      "passed_listed_checks_per_case": 0.5,
+      "median_route_length_m": 2838.38,
+      "median_energy_wh_example": 147.919,
+      "median_min_diversion_margin_wh": 13.8593,
+      "latency_p50_ms": 653.6509,
+      "latency_p95_ms": 1185.3624,
+      "violation_counts": {
+        "diversion_profile": 35
+      }
+    },
+    "ablate_ignore_future_nfz": {
+      "task_cases": 100,
+      "returned_routes": 53,
+      "passed_listed_checks_routes": 43,
+      "failed_listed_checks_routes": 10,
+      "no_route": 47,
+      "returned_route_rate": 0.53,
+      "passed_listed_checks_per_case": 0.43,
+      "median_route_length_m": 2765.47,
+      "median_energy_wh_example": 144.274,
+      "median_min_diversion_margin_wh": 34.7797,
+      "latency_p50_ms": 744.8461,
+      "latency_p95_ms": 2561.6207,
+      "violation_counts": {
+        "time_varying_nfz": 10
+      }
+    }
+  },
+  "by_variant": {
+    "0": {
+      "case_count": 20,
+      "arms": {
+        "geometry_astar": {
+          "returned": 19,
+          "passed_listed_checks": 12,
+          "failed_listed_checks": 7
+        },
+        "full_safety": {
+          "returned": 13,
+          "passed_listed_checks": 13,
+          "failed_listed_checks": 0
+        },
+        "ablate_no_diversion_search": {
+          "returned": 17,
+          "passed_listed_checks": 13,
+          "failed_listed_checks": 4
+        },
+        "ablate_ignore_future_nfz": {
+          "returned": 14,
+          "passed_listed_checks": 12,
+          "failed_listed_checks": 2
+        }
+      }
+    },
+    "1": {
+      "case_count": 20,
+      "arms": {
+        "geometry_astar": {
+          "returned": 19,
+          "passed_listed_checks": 8,
+          "failed_listed_checks": 11
+        },
+        "full_safety": {
+          "returned": 10,
+          "passed_listed_checks": 10,
+          "failed_listed_checks": 0
+        },
+        "ablate_no_diversion_search": {
+          "returned": 17,
+          "passed_listed_checks": 10,
+          "failed_listed_checks": 7
+        },
+        "ablate_ignore_future_nfz": {
+          "returned": 10,
+          "passed_listed_checks": 8,
+          "failed_listed_checks": 2
+        }
+      }
+    },
+    "2": {
+      "case_count": 20,
+      "arms": {
+        "geometry_astar": {
+          "returned": 19,
+          "passed_listed_checks": 6,
+          "failed_listed_checks": 13
+        },
+        "full_safety": {
+          "returned": 6,
+          "passed_listed_checks": 6,
+          "failed_listed_checks": 0
+        },
+        "ablate_no_diversion_search": {
+          "returned": 17,
+          "passed_listed_checks": 6,
+          "failed_listed_checks": 11
+        },
+        "ablate_ignore_future_nfz": {
+          "returned": 7,
+          "passed_listed_checks": 6,
+          "failed_listed_checks": 1
+        }
+      }
+    },
+    "3": {
+      "case_count": 20,
+      "arms": {
+        "geometry_astar": {
+          "returned": 19,
+          "passed_listed_checks": 11,
+          "failed_listed_checks": 8
+        },
+        "full_safety": {
+          "returned": 12,
+          "passed_listed_checks": 12,
+          "failed_listed_checks": 0
+        },
+        "ablate_no_diversion_search": {
+          "returned": 17,
+          "passed_listed_checks": 12,
+          "failed_listed_checks": 5
+        },
+        "ablate_ignore_future_nfz": {
+          "returned": 12,
+          "passed_listed_checks": 11,
+          "failed_listed_checks": 1
+        }
+      }
+    },
+    "4": {
+      "case_count": 20,
+      "arms": {
+        "geometry_astar": {
+          "returned": 19,
+          "passed_listed_checks": 6,
+          "failed_listed_checks": 13
+        },
+        "full_safety": {
+          "returned": 9,
+          "passed_listed_checks": 9,
+          "failed_listed_checks": 0
+        },
+        "ablate_no_diversion_search": {
+          "returned": 17,
+          "passed_listed_checks": 9,
+          "failed_listed_checks": 8
+        },
+        "ablate_ignore_future_nfz": {
+          "returned": 10,
+          "passed_listed_checks": 6,
+          "failed_listed_checks": 4
+        }
+      }
+    }
+  },
+  "generated_at": "2026-11-20T02:59:02+00:00",
+  "git_commit": "e28ba91ec6b8",
+  "suite_path": "eval/scenarios/competition_safety_100.yaml",
+  "suite_sha256": "459502913b272c0ef31be7b5d663a1aafc9eda3aa0d6b395f6804efe2093758e",
+  "vehicle_path": "scenarios/vehicles/example_not_real.yaml",
+  "vehicle_sha256": "cf3db98bc03ae2ec77f7b6969ab810c5afab5cd3bd4ee9e2605740913899ee2d",
+  "map_sha256": {
+    "obstacles.geojson": "20be3a694bf908a41beffbf7dfa5197d4ad4aae3eac6136fac0f8d4b7c5fa43d",
+    "zones.geojson": "f67f75a4d390bfc36ca87cb95febfcb9840583cb02b2f182c547507f6391b8f1",
+    "landing_sites.geojson": "de08bb4e35e8481188424fc8e233261a14bc82aac6eb98c97df2af496c3f3e04"
+  },
+  "row_count": 400,
+  "arms": [
+    "geometry_astar",
+    "full_safety",
+    "ablate_no_diversion_search",
+    "ablate_ignore_future_nfz"
+  ],
+  "cache_policy": "clear grid and diversion-field caches before each task/arm pair",
+  "evidence_class": "synthetic_software_planning_only",
+  "limitations": [
+    "场景基于冻结 v0 草稿 ENU 几何，不是真实建筑或真实空域。",
+    "机型为 example_not_real 合成参数，不是真实机型或标定能耗。",
+    "静态规划器确定性；每个任务/算法只执行一次。P50/P95 是跨任务延迟分布，不是重复运行置信区间。",
+    "风、链路故障、电线、地形、飞控动力学和真实起降未建模。",
+    "载荷与时限按航线结果复核；备降余量检查读取规划器提供的剖面，时变禁限飞区按 5 m 航线采样复核。检查与规划共用代码或模型，不是独立实现的认证级校验器。",
+    "未测任务误拒率：没有独立可行性 oracle；算法拒绝不等于该任务在现实中不可行。"
+  ],
+  "artifacts": [
+    "results/ict_safety_100/paired_runs.csv",
+    "results/ict_safety_100/summary.json",
+    "results/ict_safety_100/report.md"
+  ],
+  "experiment_source_sha256": "876e5d6d0e185d50d0070b99173f9808e010e9ea6e12259756303dac719cd349",
+  "planner_source_sha256": "a09d9b1ab767df5ab42ea5efa54622f0270412977cec1b270e4db3355bbb92d6",
+  "source_revision_note": "git_commit identifies the base commit; SHA256 fields identify local source files used for this run."
+}
