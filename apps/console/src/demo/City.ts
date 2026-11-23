@@ -9,7 +9,7 @@ import {
 } from "./city-layout";
 
 type BoxPart = [number, number, number, number, number, number, string];
-type Surface = "stone" | "glass" | "ground" | "light";
+type Surface = "stone" | "glass" | "ground" | "light" | "trim" | "tower";
 type PartLists = Record<Surface, BoxPart[]>;
 
 /**
@@ -19,7 +19,14 @@ type PartLists = Record<Surface, BoxPart[]>;
 export function createCity() {
   const root = new THREE.Group();
   root.name = "AERIS fictional waterfront";
-  const parts: PartLists = { stone: [], glass: [], ground: [], light: [] };
+  const parts: PartLists = {
+    stone: [],
+    glass: [],
+    ground: [],
+    light: [],
+    trim: [],
+    tower: [],
+  };
   function box(
     surface: Surface,
     x: number,
@@ -39,20 +46,6 @@ export function createCity() {
   box("ground", -64.5, -0.5, 0, 101, 0.8, 178, "#34464a");
   box("ground", 64.5, -0.5, 0, 101, 0.8, 178, "#394a4d");
   box("ground", 0, -0.28, 0, 28, 0.18, 178, "#155569");
-
-  // Fine water highlights, broken into short irregular streaks.
-  for (let i = 0; i < 130; i++) {
-    box(
-      "ground",
-      (cityNoise(i + 900) - 0.5) * 22,
-      -0.16,
-      (cityNoise(i + 1200) - 0.5) * 170,
-      0.15,
-      0.025,
-      1.2 + cityNoise(i + 1500) * 4.2,
-      i % 6 === 0 ? "#48808a" : "#286575",
-    );
-  }
 
   // Road surfaces, sidewalks, lane paint and zebra crossings.
   for (const x of xStreets) {
@@ -120,16 +113,90 @@ export function createCity() {
     const { x, z, width: w, depth: d, height: h, style } = lot;
     const office = style === "office";
     const warehouse = style === "warehouse";
-    const color = office ? "#466a78" : warehouse ? "#536268" : "#7a8988";
+    const palette = office
+      ? ["#466a78", "#365865", "#537787"]
+      : warehouse
+        ? ["#536268", "#616e72", "#788280"]
+        : ["#7a8988", "#a29c8c", "#8c9b9c"];
+    const color = palette[index % palette.length];
     const podium = 0.6;
     box("ground", x, 0.08, z, w + 2, 0.18, d + 2, "#737c77");
     box("stone", x, podium / 2, z, w + 0.5, podium, d + 0.5, "#45585d");
-    box(office ? "glass" : "stone", x, podium + h / 2, z, w, h, d, color);
-    box("stone", x, podium + h + 0.16, z, w + 0.3, 0.32, d + 0.3, "#9aabac");
+    box(office ? "tower" : "stone", x, podium + h / 2, z, w, h, d, color);
+    box(
+      office ? "tower" : "stone",
+      x,
+      podium + h + 0.16,
+      z,
+      w + 0.3,
+      0.32,
+      d + 0.3,
+      "#9aabac",
+    );
+
+    // Foundation courses and recessed lobby glass add visible depth.
+    for (const side of [-1, 1]) {
+      box("trim", x, 0.85, z + side * (d / 2 + 0.06), w, 0.18, 0.14, "#849798");
+      box("trim", x + side * (w / 2 + 0.06), 0.85, z, 0.14, 0.18, d, "#849798");
+      box(
+        "glass",
+        x,
+        1.22,
+        z + side * (d / 2 + 0.08),
+        w * 0.53,
+        0.78,
+        0.14,
+        "#203f50",
+      );
+      box(
+        "trim",
+        x,
+        1.72,
+        z + side * (d / 2 + 0.24),
+        w * 0.59,
+        0.14,
+        0.69,
+        "#a0adb0",
+      );
+    }
+
+    // The roof parapet casts a thin silhouette rather than a flat box outline.
+    for (const side of [-1, 1]) {
+      box(
+        "stone",
+        x,
+        h + 1.03,
+        z + side * (d / 2 - 0.1),
+        w,
+        0.25,
+        0.2,
+        "#88979a",
+      );
+      box(
+        "stone",
+        x + side * (w / 2 - 0.1),
+        h + 1.03,
+        z,
+        0.2,
+        0.25,
+        d,
+        "#88979a",
+      );
+    }
 
     // Roof installations and equipment distinguish different building types.
     if (warehouse) {
       for (let i = -1; i <= 1; i++) {
+        box(
+          "trim",
+          x + i * w * 0.24,
+          h + 0.92,
+          z,
+          w * 0.21,
+          0.15,
+          d * 0.69,
+          "#a1a9a8",
+        );
         box(
           "glass",
           x + i * w * 0.24,
@@ -139,6 +206,40 @@ export function createCity() {
           0.16,
           d * 0.66,
           "#263e50",
+        );
+        for (let bar = -2; bar <= 2; bar++) {
+          box(
+            "trim",
+            x + i * w * 0.24,
+            h + 1.07,
+            z + bar * d * 0.12,
+            w * 0.19,
+            0.025,
+            0.045,
+            "#627a88",
+          );
+        }
+      }
+      for (const side of [-1, 1]) {
+        box(
+          "trim",
+          x,
+          1.52,
+          z + side * (d / 2 + 0.1),
+          w * 0.45,
+          2.0,
+          0.15,
+          "#344550",
+        );
+        box(
+          "stone",
+          x,
+          2.6,
+          z + side * (d / 2 + 0.35),
+          w * 0.53,
+          0.16,
+          0.8,
+          "#879797",
         );
       }
     } else {
@@ -153,11 +254,66 @@ export function createCity() {
         1.5,
         "#4c6166",
       );
+      for (const side of [-1, 1]) {
+        box(
+          "trim",
+          x + side * w * 0.23,
+          h + 1.16,
+          z,
+          0.85,
+          0.43,
+          1.15,
+          "#576c74",
+        );
+        for (let grille = -2; grille <= 2; grille++) {
+          box(
+            "trim",
+            x + side * w * 0.23,
+            h + 1.39,
+            z + grille * 0.2,
+            0.72,
+            0.04,
+            0.045,
+            "#263d48",
+          );
+        }
+      }
       if (office && h > 23) {
         box("glass", x, h + 2.15, z, w * 0.57, 2.4, d * 0.56, "#6f8791");
         box("stone", x, h + 3.45, z, w * 0.61, 0.2, d * 0.6, "#a3b1b2");
         box("stone", x, h + 4.6, z, 0.18, 2.1, 0.18, "#b8c3c4");
         box("light", x, h + 5.7, z, 0.28, 0.2, 0.28, "#e6a66a");
+      }
+    }
+
+    // Vertical metal ribs create continuous reflections along taller facades.
+    if (!warehouse) {
+      const columns = office ? 5 : 4;
+      for (const side of [-1, 1]) {
+        for (let column = 0; column <= columns; column++) {
+          const nx = x + (column / columns - 0.5) * w * (office ? 0.82 : 0.92);
+          const nz = z + (column / columns - 0.5) * d * (office ? 0.82 : 0.92);
+          box(
+            "trim",
+            nx,
+            podium + h / 2,
+            z + side * (d / 2 + 0.06),
+            0.095,
+            h,
+            0.15,
+            "#91a3a9",
+          );
+          box(
+            "trim",
+            x + side * (w / 2 + 0.06),
+            podium + h / 2,
+            nz,
+            0.15,
+            h,
+            0.095,
+            "#91a3a9",
+          );
+        }
       }
     }
 
@@ -167,7 +323,53 @@ export function createCity() {
       const y = podium + 1.1 + floor * 2.6;
       if (y > h + podium - 0.65) break;
       for (const side of [-1, 1]) {
-        const count = office ? 3 : warehouse ? 2 : 4;
+        if (!warehouse) {
+          const band = office ? "#607e89" : "#929e99";
+          box(
+            "trim",
+            x,
+            y - 0.57,
+            z + side * (d / 2 + 0.07),
+            w,
+            0.13,
+            0.14,
+            band,
+          );
+          box(
+            "trim",
+            x + side * (w / 2 + 0.07),
+            y - 0.57,
+            z,
+            0.14,
+            0.13,
+            d,
+            band,
+          );
+          if (!office && (floor + index) % 2 === 0) {
+            const balconyZ = z + side * (d / 2 + 0.36);
+            box(
+              "stone",
+              x,
+              y - 0.54,
+              balconyZ,
+              w * 0.58,
+              0.13,
+              0.76,
+              "#a8aaa0",
+            );
+            box(
+              "trim",
+              x,
+              y - 0.21,
+              z + side * (d / 2 + 0.72),
+              w * 0.54,
+              0.53,
+              0.09,
+              "#6f8c92",
+            );
+          }
+        }
+        const count = office ? 5 : warehouse ? 2 : 4;
         for (let column = 0; column < count; column++) {
           const px = x + ((column + 0.5) / count - 0.5) * w * 0.86;
           const pz = z + ((column + 0.5) / count - 0.5) * d * 0.86;
@@ -181,7 +383,7 @@ export function createCity() {
             y,
             z + side * (d / 2 + 0.035),
             (w / count) * 0.68,
-            0.72,
+            office ? 1.12 : 0.86,
             0.08,
             windowColor,
           );
@@ -191,7 +393,7 @@ export function createCity() {
             y,
             pz,
             0.08,
-            0.72,
+            office ? 1.12 : 0.86,
             (d / count) * 0.68,
             windowColor,
           );
@@ -242,6 +444,23 @@ export function createCity() {
   const transform = new THREE.Object3D();
   const color = new THREE.Color();
   const cube = new THREE.BoxGeometry(1, 1, 1);
+  // Chamfered corner towers share one extruded mesh, with real edge normals.
+  const towerShape = new THREE.Shape();
+  towerShape.moveTo(-0.44, -0.5);
+  towerShape.lineTo(0.44, -0.5);
+  towerShape.lineTo(0.5, -0.44);
+  towerShape.lineTo(0.5, 0.44);
+  towerShape.lineTo(0.44, 0.5);
+  towerShape.lineTo(-0.44, 0.5);
+  towerShape.lineTo(-0.5, 0.44);
+  towerShape.lineTo(-0.5, -0.44);
+  towerShape.closePath();
+  const tower = new THREE.ExtrudeGeometry(towerShape, {
+    depth: 1,
+    bevelEnabled: false,
+  });
+  tower.rotateX(-Math.PI / 2);
+  tower.translate(0, -0.5, 0);
   const surfaces = {
     stone: new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -249,19 +468,33 @@ export function createCity() {
     }),
     glass: new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      roughness: 0.35,
-      metalness: 0.14,
+      roughness: 0.24,
+      metalness: 0.33,
     }),
     ground: new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.94,
     }),
     light: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    trim: new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.48,
+      metalness: 0.26,
+    }),
+    tower: new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.34,
+      metalness: 0.27,
+    }),
   };
   for (const surface of Object.keys(parts) as Surface[]) {
     const list = parts[surface];
     if (!list.length) continue;
-    const mesh = new THREE.InstancedMesh(cube, surfaces[surface], list.length);
+    const mesh = new THREE.InstancedMesh(
+      surface === "tower" ? tower : cube,
+      surfaces[surface],
+      list.length,
+    );
     list.forEach(([x, y, z, w, h, d, tint], i) => {
       transform.position.set(x, y, z);
       transform.scale.set(w, h, d);
@@ -272,7 +505,8 @@ export function createCity() {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-    mesh.castShadow = surface === "stone" || surface === "glass";
+    mesh.castShadow =
+      surface === "stone" || surface === "glass" || surface === "tower";
     mesh.receiveShadow = surface !== "light";
     root.add(mesh);
   }
@@ -295,6 +529,12 @@ export function createCity() {
   trees.castShadow = true;
   trees.receiveShadow = true;
   root.add(trees);
-  root.userData = { buildingCount: lots.length, fictional: true };
+  root.userData = {
+    buildingCount: lots.length,
+    detailCount:
+      Object.values(parts).reduce((sum, list) => sum + list.length, 0) +
+      treePositions.length,
+    fictional: true,
+  };
   return root;
 }

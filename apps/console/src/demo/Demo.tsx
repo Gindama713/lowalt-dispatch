@@ -12,7 +12,16 @@ import {
   RotateCcw,
   ShieldCheck,
 } from "lucide-react";
-import { chapters, DURATION, frameAt, mission, timeLabel } from "./playback";
+import {
+  chapters,
+  DURATION,
+  frameAt,
+  mission,
+  timeLabel,
+  visualViewAt,
+  type VisualChoice,
+} from "./playback";
+import type { StudioAngle } from "./Studio";
 import Scene from "./Scene";
 import "./demo.css";
 
@@ -52,7 +61,10 @@ export default function Demo() {
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [capture, setCapture] = useState(false);
+  const [visualChoice, setVisualChoice] = useState<VisualChoice>("auto");
+  const [studioAngle, setStudioAngle] = useState<StudioAngle>("orbit");
   const frame = frameAt(time, confirmed);
+  const visualView = visualViewAt(visualChoice, frame.time);
   const explain = explanations[frame.phase];
 
   useEffect(() => {
@@ -83,6 +95,8 @@ export default function Demo() {
     setPlaying(false);
     setTime(0);
     setConfirmed(false);
+    setVisualChoice("auto");
+    setStudioAngle("orbit");
   }
 
   function seek(seconds: number) {
@@ -152,24 +166,96 @@ export default function Demo() {
           <p className="demo-caption">固定工单示例 · 不提交至飞控或业务后端</p>
         </aside>
 
-        <section className="demo-map">
-          <Scene frame={frame} />
+        <section className="demo-map" data-view={visualView}>
+          <Scene frame={frame} view={visualView} studioAngle={studioAngle} />
           <div className="demo-map-top">
             <span>
-              <span className="demo-dot" /> VIRTUAL CITY
+              <span className="demo-dot" />{" "}
+              {visualView === "studio"
+                ? "CR30 / STUDIO"
+                : visualView === "detail"
+                  ? "CITY / ARCHITECTURE"
+                  : "VIRTUAL CITY"}
             </span>
-            <span>CR30 · 三维示意</span>
-          </div>
-          <div className="demo-map-bottom">
-            <div>
-              <i className="demo-key" /> 场景轨迹
+            <div className="demo-view-switch" aria-label="视觉镜头">
+              <button
+                type="button"
+                aria-pressed={visualChoice === "auto"}
+                onClick={() => setVisualChoice("auto")}
+              >
+                自动镜头
+              </button>
+              <button
+                type="button"
+                aria-pressed={visualChoice === "city"}
+                onClick={() => setVisualChoice("city")}
+              >
+                城市全景
+              </button>
+              <button
+                type="button"
+                aria-pressed={visualChoice === "detail"}
+                onClick={() => setVisualChoice("detail")}
+              >
+                建筑近景
+              </button>
+              <button
+                type="button"
+                aria-pressed={visualChoice === "studio"}
+                onClick={() => setVisualChoice("studio")}
+              >
+                CR30 特写
+              </button>
             </div>
-            <div>
-              <i className="demo-key amber" /> 备降标记
-            </div>
-            <span>非真实地理坐标</span>
           </div>
-          {frame.phase === 4 && (
+          {visualView === "city" ? (
+            <div className="demo-map-bottom">
+              <div>
+                <i className="demo-key" /> 场景轨迹
+              </div>
+              <div>
+                <i className="demo-key amber" /> 备降标记
+              </div>
+              <span>虚拟滨水城区 · 非真实地理坐标</span>
+            </div>
+          ) : visualView === "detail" ? (
+            <div className="demo-map-bottom">
+              <span>玻璃幕墙 · 建筑立柱 · 屋顶细节</span>
+              <span>虚构滨水城区展示</span>
+            </div>
+          ) : (
+            <div className="demo-studio-caption">
+              <div>
+                <small>PRODUCT VIEW / CR30</small>
+                <strong>CR30</strong>
+                <span>高精度展示模型 · 非性能或实机数据</span>
+              </div>
+              <div className="demo-studio-angles" aria-label="展示角度">
+                <button
+                  type="button"
+                  aria-pressed={studioAngle === "orbit"}
+                  onClick={() => setStudioAngle("orbit")}
+                >
+                  斜视
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={studioAngle === "side"}
+                  onClick={() => setStudioAngle("side")}
+                >
+                  侧视
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={studioAngle === "top"}
+                  onClick={() => setStudioAngle("top")}
+                >
+                  顶视
+                </button>
+              </div>
+            </div>
+          )}
+          {frame.phase === 4 && visualView === "city" && (
             <div className="demo-alert">
               <Radio size={17} /> 通信退化情景 · 备用方案回放
             </div>

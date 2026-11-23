@@ -256,6 +256,99 @@
 .demo-map-top {
   top: 16px;
 }
+.demo-map-top {
+  z-index: 3;
+}
+.demo-map::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    transparent 48%,
+    #060c1466 100%
+  );
+}
+.demo-map-label {
+  z-index: 2;
+}
+.demo-map-bottom,
+.demo-alert {
+  z-index: 2;
+}
+.demo-view-switch,
+.demo-studio-angles {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #53717f70;
+  background: #0b1821d9;
+  border-radius: 7px;
+  pointer-events: auto;
+  backdrop-filter: blur(12px);
+}
+.demo-view-switch button,
+.demo-studio-angles button {
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #99b8c8;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+}
+.demo-view-switch button[aria-pressed="true"],
+.demo-studio-angles button[aria-pressed="true"] {
+  color: #d9faf7;
+  background: #34535e;
+}
+.demo-view-switch button:hover,
+.demo-studio-angles button:hover {
+  color: #fff;
+}
+.demo-studio-caption {
+  position: absolute;
+  z-index: 2;
+  left: 24px;
+  right: 20px;
+  bottom: 22px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+.demo-studio-caption > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.demo-studio-caption small {
+  color: #9bbdc8;
+  font:
+    10px "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.17em;
+}
+.demo-studio-caption strong {
+  color: #f2fcff;
+  font-size: clamp(26px, 3vw, 46px);
+  line-height: 0.94;
+  font-weight: 650;
+  letter-spacing: -0.05em;
+  text-shadow: 0 3px 24px #09131d;
+}
+.demo-studio-caption span {
+  color: #98aeb9;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.demo-capture .demo-view-switch,
+.demo-capture .demo-studio-angles {
+  display: none;
+}
 .demo-map-bottom {
   bottom: 14px;
   padding: 11px;
@@ -477,5 +570,27 @@
   }
   .demo-task-status {
     text-align: left;
+  }
+}
+
+@media (max-width: 650px) {
+  .demo-map-top {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .demo-map-top > span {
+    font-size: 9px;
+    line-height: 26px;
+  }
+  .demo-view-switch button,
+  .demo-studio-angles button {
+    padding: 6px;
+    font-size: 10px;
+  }
+  .demo-studio-caption {
+    left: 12px;
+    right: 12px;
+    bottom: 14px;
   }
 }

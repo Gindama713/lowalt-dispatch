@@ -5,6 +5,7 @@ import {
   DURATION,
   frameAt,
   timeLabel,
+  visualViewAt,
 } from "../src/demo/playback.ts";
 
 import { landmarks, makeCityLots } from "../src/demo/city-layout.ts";
@@ -49,4 +50,17 @@ test("replay never loops from its terminal state and seeking is reversible", () 
   assert.deepEqual(frameAt(118, true), frameAt(118, true));
   assert.equal(frameAt(0, false).progress, 0);
   assert.equal(timeLabel(DURATION), "03:00");
+});
+
+test("cinematic insert follows replay time and respects manual views", () => {
+  assert.equal(visualViewAt("auto", 31.9), "city");
+  assert.equal(visualViewAt("auto", 32), "detail");
+  assert.equal(visualViewAt("auto", 33.9), "detail");
+  assert.equal(visualViewAt("auto", 34), "studio");
+  assert.equal(visualViewAt("auto", 48.9), "studio");
+  assert.equal(visualViewAt("auto", 49), "detail");
+  assert.equal(visualViewAt("auto", 52), "city");
+  assert.equal(visualViewAt("city", 40), "city");
+  assert.equal(visualViewAt("studio", 0), "studio");
+  assert.equal(visualViewAt("detail", 0), "detail");
 });

@@ -6,8 +6,16 @@ import decoderWasm from "three/examples/jsm/libs/draco/gltf/draco_decoder.wasm?u
 import decoderWrapper from "three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js?url";
 import decoderScript from "three/examples/jsm/libs/draco/gltf/draco_decoder.js?url";
 import modelUrl from "../../../../references/rea-city-flight/asset/out/cr30_lod1.glb?url";
-import type { DemoFrame } from "./playback";
+import heroModelUrl from "../../../../references/rea-city-flight/asset/out/cr30.glb?url";
+import type { DemoFrame, VisualView } from "./playback";
 import { createCity } from "./City";
+import {
+  createEnvironment,
+  createStudio,
+  makeBackdrop,
+  type StudioAngle,
+} from "./Studio";
+import { createWater } from "./Water";
 
 // Artistic scene coordinates only. No map projection or real-world navigation.
 const points = [
@@ -34,15 +42,26 @@ const labels = [
   { point: destination, caption: "河东救援点" },
 ];
 
-export default function Scene({ frame }: { frame: DemoFrame }) {
+export default function Scene({
+  frame,
+  view,
+  studioAngle,
+}: {
+  frame: DemoFrame;
+  view: VisualView;
+  studioAngle: StudioAngle;
+}) {
   const host = useRef<HTMLDivElement>(null);
-  const current = useRef(frame);
+  const current = useRef({ frame, view, studioAngle });
   const [unavailable, setUnavailable] = useState(false);
   const [modelState, setModelState] = useState<
     "loading" | "loaded" | "fallback"
   >("loading");
+  const [heroState, setHeroState] = useState<
+    "loading" | "loaded" | "fallback"
+  >("loading");
   const labelElements = useRef<(HTMLSpanElement | null)[]>([]);
-  current.current = frame;
+  current.current = { frame, view, studioAngle };
 
   useEffect(() => {
     const node = host.current;
@@ -58,18 +77,23 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
     renderer.setClearColor("#0b1420");
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 1.08;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.shadowMap.autoUpdate = false;
     node.appendChild(renderer.domElement);
     renderer.domElement.setAttribute("aria-label", "虚构三维城市动画");
     renderer.domElement.setAttribute("role", "img");
+    const environment = createEnvironment(renderer);
+    const studio = createStudio(environment.texture);
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#0b1420", 240, 520);
-    scene.add(new THREE.HemisphereLight(0xc2dff1, 0x35454b, 1.65));
-    const sun = new THREE.DirectionalLight(0xffe1b9, 2.65);
-    sun.position.set(-105, 110, 65);
+    scene.background = makeBackdrop("#24414d", "#080e17");
+    scene.environment = environment.texture;
+    scene.environmentIntensity = 0.44;
+    scene.fog = new THREE.Fog("#0c1924", 244, 500);
+    scene.add(new THREE.HemisphereLight(0xbadbf0, 0x303a3d, 1.2));
+    const sun = new THREE.DirectionalLight(0xffd5a8, 3.2);
+    sun.position.set(-118, 92, 65);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.left = -160;
@@ -83,7 +107,7 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
     sun.shadow.camera.updateProjectionMatrix();
     scene.add(sun);
     scene.add(sun.target);
-    const rim = new THREE.DirectionalLight(0x78bde1, 0.8);
+    const rim = new THREE.DirectionalLight(0x80c9f2, 1.35);
     rim.position.set(110, 65, -95);
     scene.add(rim);
     const camera = new THREE.PerspectiveCamera(43, 1, 0.5, 900);
@@ -91,18 +115,24 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
     scene.add(city);
     node.dataset.city = "waterfront";
     node.dataset.buildings = String(city.userData.buildingCount);
+    node.dataset.details = String(city.userData.detailCount);
+    const water = createWater();
+    scene.add(water);
     renderer.shadowMap.needsUpdate = true;
+    // These overlays belong to the city review shot, not the beauty shot.
+    const reviewOverlay = new THREE.Group();
+    scene.add(reviewOverlay);
     const line = new THREE.Mesh(
       new THREE.TubeGeometry(opening, 40, 0.52, 6, false),
-      new THREE.MeshBasicMaterial({ color: 0x56e0dd }),
+      new THREE.MeshBasicMaterial({ color: 0x6ee8df, toneMapped: false }),
     );
-    scene.add(line);
+    reviewOverlay.add(line);
     const alternate = new THREE.Mesh(
       new THREE.TubeGeometry(ending, 40, 0.52, 6, false),
-      new THREE.MeshBasicMaterial({ color: 0xffc779 }),
+      new THREE.MeshBasicMaterial({ color: 0xffc779, toneMapped: false }),
     );
     alternate.visible = false;
-    scene.add(alternate);
+    reviewOverlay.add(alternate);
     const planned = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(illustratedPlan.getPoints(40)),
       new THREE.LineDashedMaterial({
@@ -112,7 +142,7 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       }),
     );
     planned.computeLineDistances();
-    scene.add(planned);
+    reviewOverlay.add(planned);
     const marker = (p: THREE.Vector3, color: number) => {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(5, 6.3, 48),
@@ -120,7 +150,7 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(p.x, 0.4, p.z);
-      scene.add(ring);
+      reviewOverlay.add(ring);
     };
     marker(points[0], 0x56e0dd);
     marker(points[3], 0xffc779);
@@ -131,7 +161,7 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       new THREE.MeshStandardMaterial({ color: 0xe1eef7, metalness: 0.65 }),
     );
     aircraft.add(fallback);
-    scene.add(aircraft);
+    reviewOverlay.add(aircraft);
     let disposed = false;
     const freeObject = (object: THREE.Object3D) => {
       const geometries = new Set<THREE.BufferGeometry>();
@@ -161,7 +191,9 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
     const manager = new THREE.LoadingManager();
     manager.setURLModifier((url) => decoderAssets[url] ?? url);
     const decoder = new DRACOLoader(manager);
-    new GLTFLoader(manager).setDRACOLoader(decoder).load(
+    const loader = new GLTFLoader(manager).setDRACOLoader(decoder);
+    let studioNeedsShadow = true;
+    loader.load(
       modelUrl,
       (gltf) => {
         if (disposed) {
@@ -185,12 +217,31 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       },
     );
 
+    loader.load(
+      heroModelUrl,
+      (gltf) => {
+        if (disposed) {
+          freeObject(gltf.scene);
+          return;
+        }
+        studio.mount(gltf.scene);
+        studioNeedsShadow = true;
+        setHeroState("loaded");
+      },
+      undefined,
+      () => {
+        if (!disposed) setHeroState("fallback");
+      },
+    );
+
     const resize = () => {
       const width = Math.max(1, node.clientWidth),
         height = Math.max(1, node.clientHeight);
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      studio.camera.aspect = width / height;
+      studio.camera.updateProjectionMatrix();
     };
     const observer = new ResizeObserver(resize);
     observer.observe(node);
@@ -207,8 +258,33 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       { time: 142, angle: -0.22, height: 153, distance: 200 },
       { time: 180, angle: -0.22, height: 153, distance: 200 },
     ];
+    let renderedView: VisualView | null = null;
     const animate = () => {
-      const state = current.current;
+      const { frame: state, view: activeView, studioAngle } = current.current;
+      if (renderedView !== activeView) {
+        renderer.shadowMap.needsUpdate = true;
+        renderedView = activeView;
+        renderer.domElement.setAttribute(
+          "aria-label",
+          activeView === "studio"
+            ? "CR30 高精度模型特写"
+            : activeView === "detail"
+              ? "虚拟城市建筑近景"
+              : "虚构三维城市动画",
+        );
+      }
+      if (activeView === "studio") {
+        if (studioNeedsShadow) {
+          renderer.shadowMap.needsUpdate = true;
+          studioNeedsShadow = false;
+        }
+        studio.updateCamera(state.time, studioAngle);
+        renderer.render(studio.scene, studio.camera);
+        raf = requestAnimationFrame(animate);
+        return;
+      }
+      water.material.uniforms.uTime.value = state.time;
+      reviewOverlay.visible = activeView === "city";
       aircraft.position.copy(
         state.time < 118
           ? opening.getPoint(
@@ -231,12 +307,23 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       const fit = Math.max(1, 1.24 / camera.aspect);
       const distance =
         THREE.MathUtils.lerp(before.distance, after.distance, mix) * fit;
-      camera.position.set(
-        distance * Math.sin(angle),
-        THREE.MathUtils.lerp(before.height, after.height, mix) * fit,
-        distance * Math.cos(angle),
-      );
-      camera.lookAt(0, 5, 0);
+      if (activeView === "detail") {
+        // Fixed art-directed composition of the fictional office district.
+        const nudge = THREE.MathUtils.smoothstep(state.time, 32, 52);
+        camera.position.set(
+          52 + (52 - 11 * nudge) * fit,
+          10 + 46 * fit,
+          -35 + 69 * fit,
+        );
+        camera.lookAt(52, 10, -35);
+      } else {
+        camera.position.set(
+          distance * Math.sin(angle),
+          THREE.MathUtils.lerp(before.height, after.height, mix) * fit,
+          distance * Math.cos(angle),
+        );
+        camera.lookAt(0, 5, 0);
+      }
       camera.updateMatrixWorld();
       alternate.visible = state.phase >= 4;
       labels.forEach(({ point }, index) => {
@@ -259,16 +346,30 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       cancelAnimationFrame(raf);
       observer.disconnect();
       freeObject(scene);
+      freeObject(studio.scene);
+      if (scene.background instanceof THREE.Texture) scene.background.dispose();
+      if (studio.scene.background instanceof THREE.Texture)
+        studio.scene.background.dispose();
+      environment.dispose();
       decoder.dispose();
       sun.shadow.dispose();
+      studio.shadow.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
   }, []);
 
   return (
-    <div className="demo-scene" ref={host} data-model={modelState}>
+    <div
+      className="demo-scene"
+      ref={host}
+      data-model={modelState}
+      data-hero-model={heroState}
+      data-view={view}
+      data-studio-angle={studioAngle}
+    >
       {!unavailable &&
+        view === "city" &&
         labels.map(({ caption }, index) => (
           <span
             key={caption}
@@ -283,8 +384,13 @@ export default function Scene({ frame }: { frame: DemoFrame }) {
       {unavailable && (
         <div className="demo-scene-fallback">虚拟城区 · 3D 渲染不可用</div>
       )}
-      {modelState === "fallback" && !unavailable && (
+      {view === "city" && modelState === "fallback" && !unavailable && (
         <span className="demo-model-fallback">模型加载失败 · 使用示意标记</span>
+      )}
+      {view === "studio" && heroState !== "loaded" && !unavailable && (
+        <span className="demo-model-fallback">
+          {heroState === "loading" ? "正在加载高精度模型…" : "高精度模型加载失败"}
+        </span>
       )}
     </div>
   );

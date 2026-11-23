@@ -66,6 +66,20 @@ export function frameAt(seconds: number, confirmed: boolean) {
 
 export type DemoFrame = ReturnType<typeof frameAt>;
 
+export type VisualChoice = "auto" | "city" | "detail" | "studio";
+export type VisualView = "city" | "detail" | "studio";
+
+/** The studio shot is a purely visual insert within the fictional replay. */
+export function visualViewAt(
+  choice: VisualChoice,
+  seconds: number,
+): VisualView {
+  if (choice !== "auto") return choice;
+  if (seconds >= 34 && seconds < 49) return "studio";
+  if (seconds >= 32 && seconds < 52) return "detail";
+  return "city";
+}
+
 export function timeLabel(seconds: number) {
   const whole = Math.floor(seconds);
   return `${String(Math.floor(whole / 60)).padStart(2, "0")}:${String(whole % 60).padStart(2, "0")}`;

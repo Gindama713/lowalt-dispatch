@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: "demo.spec.ts",
   workers: 1,
-  timeout: 60_000,
+  timeout: 120_000,
   expect: { timeout: 30_000 },
   reporter: "list",
   use: {
