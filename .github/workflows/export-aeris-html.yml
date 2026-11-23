@@ -1,0 +1,149 @@
+name: Export AERIS standalone HTML
+
+on:
+  push:
+    branches: ["codex/export-aeris-html-20261123"]
+    paths: [".github/workflows/export-aeris-html.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  standalone:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
+      - run: npm ci
+      - name: Build a fully embedded demo
+        run: |
+          node --input-type=module <<'NODE'
+          import { build } from "vite";
+          import react from "@vitejs/plugin-react";
+          import assert from "node:assert/strict";
+          import { readFile, writeFile, readdir, mkdir } from "node:fs/promises";
+          import { resolve } from "node:path";
+
+          await writeFile("demo-export.html", `<!doctype html>
+          <html lang="zh-CN">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="color-scheme" content="dark">
+            <title>AERIS · 离线竞赛演示</title>
+          </head>
+          <body><div id="root"></div><script type="module" src="./src/demo/standalone-entry.tsx"></script></body>
+          </html>`);
+          await writeFile("src/demo/standalone-entry.tsx", `import React from "react";
+          import { createRoot } from "react-dom/client";
+          import "../fonts.css";
+          import "../styles.css";
+          import Demo from "./Demo";
+          document.documentElement.dataset.theme = "dark";
+          document.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            if (target.closest(".demo-brand a")) {
+              event.preventDefault();
+              location.reload();
+            }
+          });
+          createRoot(document.getElementById("root")!).render(<Demo />);
+          `);
+
+          const outDir = resolve("dist-html-build");
+          await build({
+            configFile: false,
+            plugins: [react()],
+            root: process.cwd(),
+            base: "./",
+            publicDir: false,
+            build: {
+              outDir,
+              emptyOutDir: true,
+              cssCodeSplit: false,
+              assetsInlineLimit: 20 * 1024 * 1024,
+              modulePreload: false,
+              rollupOptions: {
+                input: resolve("demo-export.html"),
+                output: { inlineDynamicImports: true },
+              },
+            },
+          });
+          let html = await readFile(resolve(outDir, "demo-export.html"), "utf8");
+          const scripts = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*><\/script>/gi)];
+          assert.equal(scripts.length, 1, "Expected one bundled JavaScript module");
+          for (const item of scripts) {
+            const js = await readFile(resolve(outDir, item[1]), "utf8");
+            html = html.replace(item[0], () => '<script type="module">' + js.replace(/<\/script/gi, "<\\/script") + "</script>");
+          }
+          const styles = [...html.matchAll(/<link\b(?=[^>]*\brel="stylesheet")(?=[^>]*\bhref="([^"]+)")[^>]*>/gi)];
+          assert.ok(styles.length > 0, "Expected bundled CSS");
+          for (const item of styles) {
+            const css = await readFile(resolve(outDir, item[1]), "utf8");
+            html = html.replace(item[0], () => "<style>" + css.replace(/<\/style/gi, "<\\/style") + "</style>");
+          }
+          const remaining = await readdir(resolve(outDir, "assets"));
+          assert.ok(remaining.every((name) => /\.(js|css)$/.test(name)), "Unexpected separate asset: " + remaining.join(", "));
+          assert.ok(!/<script\b[^>]*\bsrc=/.test(html), "External script tag remains");
+          assert.ok(!/<link\b[^>]*\brel="stylesheet"/.test(html), "External stylesheet remains");
+          await mkdir("standalone", { recursive: true });
+          await writeFile("standalone/AERIS-demo.html", html);
+          console.log("Standalone HTML bytes:", Buffer.byteLength(html));
+          NODE
+      - run: npx playwright install --with-deps chromium
+      - name: Verify directly from the filesystem
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from "playwright";
+          import assert from "node:assert/strict";
+          import { pathToFileURL } from "node:url";
+          import { resolve } from "node:path";
+          const browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+            const external = [];
+            const errors = [];
+            page.on("request", (req) => {
+              if (/^https?:/.test(req.url())) external.push(req.url());
+            });
+            page.on("pageerror", (error) => errors.push(error.message));
+            page.on("console", (message) => {
+              if (message.type() === "error" && /WebGLProgram|shader error|WebGL: INVALID/.test(message.text())) errors.push(message.text());
+            });
+            await page.route(/^https?:\/\//, (route) => route.abort());
+            await page.goto(pathToFileURL(resolve("standalone/AERIS-demo.html")).href);
+            const scene = page.locator('.demo-scene');
+            await scene.locator('canvas').waitFor({ timeout: 45000 });
+            await page.locator('.demo-scene[data-model="loaded"][data-hero-model="loaded"]').waitFor({ timeout: 90000 });
+            await page.getByRole("button", { name: "建筑近景" }).click();
+            await page.locator('.demo-scene[data-rendered-view="detail"]').waitFor();
+            await page.getByRole("button", { name: "CR30 特写" }).click();
+            await page.locator('.demo-scene[data-rendered-view="studio"]').waitFor();
+            await page.getByRole("button", { name: "顶视", exact: true }).click();
+            await page.locator('.demo-scene[data-rendered-angle="top"]').waitFor();
+            await page.getByRole("button", { name: "自动镜头" }).click();
+            await page.getByRole("button", { name: "确认演示工单" }).click();
+            await page.getByRole("slider", { name: "演示时间轴" }).fill("118");
+            await page.locator('.demo-scene[data-rendered-view="city"]').waitFor();
+            assert.ok((await page.locator(".demo-alert").innerText()).includes("通信退化情景"));
+            assert.deepEqual(external, []);
+            assert.deepEqual(errors, []);
+            console.log("PASS: single HTML opened with file://, both GLB assets, architecture, studio, timeline, no HTTP requests, no page errors");
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AERIS-demo-HTML
+          path: apps/console/standalone/AERIS-demo.html
+          if-no-files-found: error
+          retention-days: 30
