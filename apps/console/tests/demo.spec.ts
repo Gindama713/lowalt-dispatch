@@ -61,15 +61,15 @@ test("competition replay loads the local model and preserves the simulated missi
   await expect(page.locator(".demo-map-label")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("cr30-studio.png") });
   await page.getByRole("button", { name: "顶视", exact: true }).click();
-  await expect(scene).toHaveAttribute("data-studio-angle", "top");
+  await expect(scene).toHaveAttribute("data-rendered-angle", "top");
   await page.screenshot({ path: testInfo.outputPath("cr30-top.png") });
   await page.getByRole("button", { name: "斜视", exact: true }).click();
   await page.getByRole("button", { name: "自动镜头" }).click();
   await page.getByRole("button", { name: "确认演示工单" }).click();
   await page.getByRole("slider", { name: "演示时间轴" }).fill("40");
-  await expect(scene).toHaveAttribute("data-view", "studio");
+  await expect(scene).toHaveAttribute("data-rendered-view", "studio");
   await page.getByRole("slider", { name: "演示时间轴" }).fill("118");
-  await expect(scene).toHaveAttribute("data-view", "city");
+  await expect(scene).toHaveAttribute("data-rendered-view", "city");
   await expect(page.locator(".demo-alert")).toContainText("通信退化情景");
   await page.screenshot({ path: testInfo.outputPath("waterfront-city.png") });
   await page.getByRole("button", { name: "备降复盘", exact: true }).click();

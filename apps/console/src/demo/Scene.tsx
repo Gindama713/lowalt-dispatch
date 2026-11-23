@@ -57,9 +57,9 @@ export default function Scene({
   const [modelState, setModelState] = useState<
     "loading" | "loaded" | "fallback"
   >("loading");
-  const [heroState, setHeroState] = useState<
-    "loading" | "loaded" | "fallback"
-  >("loading");
+  const [heroState, setHeroState] = useState<"loading" | "loaded" | "fallback">(
+    "loading",
+  );
   const labelElements = useRef<(HTMLSpanElement | null)[]>([]);
   current.current = { frame, view, studioAngle };
 
@@ -193,6 +193,8 @@ export default function Scene({
     const decoder = new DRACOLoader(manager);
     const loader = new GLTFLoader(manager).setDRACOLoader(decoder);
     let studioNeedsShadow = true;
+    let cityNeedsShadow = true;
+    let redraw = true;
     loader.load(
       modelUrl,
       (gltf) => {
@@ -209,6 +211,7 @@ export default function Scene({
         aircraft.remove(fallback);
         freeObject(fallback);
         aircraft.add(gltf.scene);
+        redraw = true;
         setModelState("loaded");
       },
       undefined,
@@ -226,6 +229,7 @@ export default function Scene({
         }
         studio.mount(gltf.scene);
         studioNeedsShadow = true;
+        redraw = true;
         setHeroState("loaded");
       },
       undefined,
@@ -238,6 +242,7 @@ export default function Scene({
       const width = Math.max(1, node.clientWidth),
         height = Math.max(1, node.clientHeight);
       renderer.setSize(width, height);
+      redraw = true;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       studio.camera.aspect = width / height;
@@ -259,31 +264,44 @@ export default function Scene({
       { time: 180, angle: -0.22, height: 153, distance: 200 },
     ];
     let renderedView: VisualView | null = null;
+    let renderedAngle: StudioAngle | null = null;
+    let renderedTime = -1;
     const animate = () => {
       const { frame: state, view: activeView, studioAngle } = current.current;
-      if (renderedView !== activeView) {
-        renderer.shadowMap.needsUpdate = true;
-        renderedView = activeView;
-        renderer.domElement.setAttribute(
-          "aria-label",
-          activeView === "studio"
-            ? "CR30 高精度模型特写"
-            : activeView === "detail"
-              ? "虚拟城市建筑近景"
-              : "虚构三维城市动画",
-        );
+      const time = Math.floor(state.time * 30) / 30;
+      // A paused shot is a static photograph. Avoid continually drawing the
+      // high-detail mesh or the city when none of their inputs have changed.
+      if (
+        !redraw &&
+        renderedTime === time &&
+        renderedView === activeView &&
+        renderedAngle === studioAngle
+      ) {
+        raf = requestAnimationFrame(animate);
+        return;
       }
+      redraw = false;
+      renderedTime = time;
+      renderedView = activeView;
+      renderedAngle = studioAngle;
       if (activeView === "studio") {
         if (studioNeedsShadow) {
           renderer.shadowMap.needsUpdate = true;
           studioNeedsShadow = false;
         }
-        studio.updateCamera(state.time, studioAngle);
+        studio.updateCamera(time, studioAngle);
         renderer.render(studio.scene, studio.camera);
+        renderer.domElement.setAttribute("aria-label", "CR30 高精度模型特写");
+        node.dataset.renderedView = "studio";
+        node.dataset.renderedAngle = studioAngle;
         raf = requestAnimationFrame(animate);
         return;
       }
-      water.material.uniforms.uTime.value = state.time;
+      if (cityNeedsShadow) {
+        renderer.shadowMap.needsUpdate = true;
+        cityNeedsShadow = false;
+      }
+      water.material.uniforms.uTime.value = time;
       reviewOverlay.visible = activeView === "city";
       aircraft.position.copy(
         state.time < 118
@@ -337,6 +355,11 @@ export default function Scene({
         element.style.top = `${(1 - projected.y) * 50}%`;
       });
       renderer.render(scene, camera);
+      renderer.domElement.setAttribute(
+        "aria-label",
+        activeView === "detail" ? "虚拟城市建筑近景" : "虚构三维城市动画",
+      );
+      node.dataset.renderedView = activeView;
       raf = requestAnimationFrame(animate);
     };
     camera.position.set(95, 132, 160);
@@ -389,7 +412,9 @@ export default function Scene({
       )}
       {view === "studio" && heroState !== "loaded" && !unavailable && (
         <span className="demo-model-fallback">
-          {heroState === "loading" ? "正在加载高精度模型…" : "高精度模型加载失败"}
+          {heroState === "loading"
+            ? "正在加载高精度模型…"
+            : "高精度模型加载失败"}
         </span>
       )}
     </div>
