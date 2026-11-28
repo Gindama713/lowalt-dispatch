@@ -19,7 +19,6 @@ import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { GRID, GRID_STEP, pointAlong, TerrainModel } from "./terrain";
 import { RADAR_TILE_ZOOM, WIND_REGION, type WindField } from "./weather";
 import { createWindLayer, WIND_MAX_ZOOM } from "./WindLayer";
-import { useTheme } from "./portal/Theme";
 import type { NavigationOverlay } from "./navigation/engine";
 import type { RealScene } from "./RealRouting";
 import { airspaceKinds } from "./navigation/airspace";
@@ -105,6 +104,8 @@ export type WeatherOverlay = {
 export type GeoMapProps = {
   onAirspaceSelect?: (id: string) => void;
   navigation?: NavigationOverlay | null;
+  nationalFlysafe?: FeatureCollection | null;
+  nationalFlysafeKey?: string;
   onManualMove?: () => void;
   mode: ViewMode;
   basemap: Basemap;
@@ -119,6 +120,8 @@ export type GeoMapProps = {
   terrainModel: TerrainModel;
   mission: GeoMission;
   realRoute?: LngLat[];
+  realPreviousRoute?: LngLat[];
+  realConflictSegments?: [LngLat, LngLat][];
   realScene?: RealScene | null;
   selected: GeoPlace | null;
   preview?: { route_id: string; waypoints: Point[] } | null;
@@ -134,10 +137,6 @@ export type GeoMapProps = {
 
 export default forwardRef<GeoMapHandle, GeoMapProps>(
   function GeoMap(props, ref) {
-    const { theme } = useTheme();
-    const appearance = useRef(theme);
-    appearance.current = theme;
-    const loadedTheme = useRef(theme);
     const root = useRef<HTMLDivElement>(null);
     const runtime = useRef<{
       map: LibreMap;
@@ -172,20 +171,33 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         if (!points.length) return;
         const map = runtime.current?.map;
         if (!map) return;
-        // The real-route panel can change the workspace width in this same
-        // React commit. Fit against its current layout rather than a stale
-        // viewport, and render the matching GPU frame below.
-        map.resize();
-        const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
-        points.slice(1).forEach((p) => bounds.extend(p));
-        map.fitBounds(bounds, {
-          padding: { top: 80, bottom: 65, left: 45, right: 45 },
-          maxZoom: 16,
-          pitch: 0,
-          bearing: 0,
-          duration: dynamic.current.reducedMotion ? 0 : 800,
-        });
-        map.redraw();
+        let attempts = 0;
+        const fit = () => {
+          const current = runtime.current?.map;
+          if (!current) return;
+          // `load` fires once per style. A later overview can see
+          // isStyleLoaded() false while that event will never fire again,
+          // which left zone labels at the previous camera and under the sidebar.
+          if (!current.isStyleLoaded()) {
+            if (attempts++ < 12) current.once("idle", fit);
+            return;
+          }
+          // The real-route panel can change the workspace width in this same
+          // React commit. Fit against its current layout rather than a stale
+          // viewport, and render the matching GPU frame below.
+          current.resize();
+          const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
+          points.slice(1).forEach((p) => bounds.extend(p));
+          current.fitBounds(bounds, {
+            padding: { top: 80, bottom: 65, left: 45, right: 45 },
+            maxZoom: 16,
+            pitch: 0,
+            bearing: 0,
+            duration: dynamic.current.reducedMotion ? 0 : 800,
+          });
+          current.redraw();
+        };
+        fit();
       },
       reset: () =>
         runtime.current?.map.flyTo({
@@ -241,6 +253,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       let styleGeneration = 0;
       let tileTimeout: number | undefined;
       let basemapSourceIds = new Set<string>();
+      let basemapHasTiles = false;
       let terrainFailed = false;
       let satelliteFailed = false;
       let lastBasemap = dynamic.current.basemap;
@@ -278,7 +291,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       try {
         map = new maplibregl.Map({
           container: root.current!,
-          style: offline(appearance.current === "dark"),
+          style: offline(false),
           center: enuToLngLat([1500, 1500]),
           zoom: 14.1,
           pitch: dynamic.current.mode === "3d" ? 55 : 0,
@@ -839,10 +852,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         const timeout = window.setTimeout(() => abort.abort(), 12000);
         state("正在连接真实底图");
         try {
-          const response = await fetch(
-            appearance.current === "dark" ? CARTO_NIGHT_STYLE : CARTO_STYLE,
-            { signal: abort.signal },
-          );
+          const response = await fetch(CARTO_STYLE, { signal: abort.signal });
           if (!response.ok) throw new Error();
           const style = (await response.json()) as StyleSpecification;
           if (
@@ -853,6 +863,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             throw new Error();
           if (disposed || generation !== styleGeneration) return;
           basemapSourceIds = new Set(Object.keys(style.sources));
+          basemapHasTiles = false;
           mapReady = false;
           // A retry must rebuild even an identical style, so cached failures and
           // our overlays receive a fresh style.load lifecycle.
@@ -863,9 +874,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           map.setStyle(style, { diff: false });
         } catch {
           if (!disposed && generation === styleGeneration) {
-            map.setStyle(offline(appearance.current === "dark"), {
-              diff: false,
-            });
             state("底图离线 · 坐标可用");
           }
         } finally {
@@ -891,8 +899,52 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
       let lastNavigation = "";
       let lastRealScene: RealScene | null | undefined;
       let lastRealRoute = "";
+      let lastRealConflictKey = "";
       let lastAirspaces = "";
+      let lastNational = "";
       let airspaceLabels: maplibregl.Marker[] = [];
+      const nationalRed = "#d64545";
+      function syncNationalFlysafe() {
+        if (!mapReady) return;
+        const overlay = dynamic.current.nationalFlysafe;
+        const key = dynamic.current.nationalFlysafeKey ?? "";
+        const features = overlay?.features ?? [];
+        if (key !== lastNational || !map.getSource("flysafe-national")) {
+          lastNational = key;
+          source(
+            "flysafe-national",
+            features.length
+              ? overlay!
+              : { type: "FeatureCollection", features: [] },
+          );
+          if (!map.getLayer("flysafe-national-fill"))
+            map.addLayer({
+              id: "flysafe-national-fill",
+              type: "fill",
+              source: "flysafe-national",
+              paint: {
+                "fill-color": nationalRed,
+                "fill-opacity": 0.46,
+              },
+            });
+          if (!map.getLayer("flysafe-national-outline"))
+            map.addLayer({
+              id: "flysafe-national-outline",
+              type: "line",
+              source: "flysafe-national",
+              paint: {
+                "line-color": nationalRed,
+                "line-width": 1.8,
+              },
+            });
+          addBelowDemo("flysafe-national-fill");
+          addBelowDemo("flysafe-national-outline");
+        }
+        const visible =
+          dynamic.current.layers.restrictions && features.length > 0;
+        setLayerVisibility("flysafe-national-fill", visible);
+        setLayerVisibility("flysafe-national-outline", visible);
+      }
       function syncNavigation() {
         if (!mapReady) return;
         const nav = dynamic.current.navigation;
@@ -905,6 +957,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
               (nav?.regions ?? []).map((r) =>
                 feature(r.geometry, {
                   region_id: r.id,
+                  kind: r.kind,
                   color: airspaceKinds[r.kind].color,
                   selected: r.id === nav?.selectedRegion ? 1 : 0,
                 }),
@@ -920,9 +973,17 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
                 "fill-color": ["get", "color"],
                 "fill-opacity": [
                   "case",
+                  [
+                    "all",
+                    ["==", ["get", "kind"], "restricted"],
+                    ["==", ["get", "selected"], 1],
+                  ],
+                  0.52,
+                  ["==", ["get", "kind"], "restricted"],
+                  0.42,
                   ["==", ["get", "selected"], 1],
-                  0.24,
-                  0.12,
+                  0.42,
+                  0.32,
                 ],
               },
             });
@@ -933,8 +994,18 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
               source: "airspace-regions",
               paint: {
                 "line-color": ["get", "color"],
-                "line-width": ["case", ["==", ["get", "selected"], 1], 3, 1.5],
-                "line-dasharray": [4, 2],
+                "line-width": [
+                  "case",
+                  [
+                    "all",
+                    ["==", ["get", "kind"], "restricted"],
+                    ["==", ["get", "selected"], 1],
+                  ],
+                  3,
+                  ["==", ["get", "kind"], "restricted"],
+                  2.4,
+                  1.8,
+                ],
               },
             });
           airspaceLabels.forEach((m) => m.remove());
@@ -942,7 +1013,13 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             const el = document.createElement("button");
             el.className = "geo-airspace-label";
             el.style.borderColor = airspaceKinds[r.kind].color;
-            el.textContent = `${r.is_simulated ? "演练 · " : "参考 · "}${r.name}`;
+            el.textContent = `${
+              r.is_simulated
+                ? "演练 · "
+                : r.source_kind === "manufacturer"
+                  ? "FlySafe · "
+                  : "参考 · "
+            }${r.name}`;
             el.title = `${airspaceKinds[r.kind].title} · ${r.source}`;
             el.addEventListener("click", (e) => {
               e.stopPropagation();
@@ -957,6 +1034,12 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
               .addTo(map);
           });
         }
+        const restrictionsVisible = dynamic.current.layers.restrictions;
+        setLayerVisibility("airspace-regions-fill", restrictionsVisible);
+        setLayerVisibility("airspace-regions-outline", restrictionsVisible);
+        airspaceLabels.forEach((m) => {
+          m.getElement().hidden = !restrictionsVisible;
+        });
         const key = JSON.stringify(nav);
         if (key === lastNavigation && map.getSource("navigation-active"))
           return;
@@ -1052,6 +1135,40 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             ),
           );
         }
+        const conflictKey = JSON.stringify([
+          p.realPreviousRoute,
+          p.realConflictSegments,
+        ]);
+        if (
+          lastRealConflictKey !== conflictKey ||
+          !map.getSource("real-conflict-segments")
+        ) {
+          lastRealConflictKey = conflictKey;
+          source(
+            "real-previous-route",
+            collection(
+              (p.realPreviousRoute?.length ?? 0) > 1
+                ? [line(p.realPreviousRoute!)]
+                : [],
+            ),
+          );
+          source(
+            "real-conflict-segments",
+            collection(
+              (p.realConflictSegments ?? [])
+                .filter((seg) => seg.length === 2)
+                .map((seg) => line([seg[0], seg[1]])),
+            ),
+          );
+          if (root.current) {
+            root.current.dataset.realConflictSegments = String(
+              p.realConflictSegments?.length ?? 0,
+            );
+            root.current.dataset.realPreviousRoutePoints = String(
+              p.realPreviousRoute?.length ?? 0,
+            );
+          }
+        }
         if (!map.getLayer("real-roads-line"))
           map.addLayer({
             id: "real-roads-line",
@@ -1085,6 +1202,18 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             source: "real-buildings",
             paint: { "line-color": "#c985a4", "line-width": 1 },
           });
+        if (!map.getLayer("real-previous-route-line"))
+          map.addLayer({
+            id: "real-previous-route-line",
+            type: "line",
+            source: "real-previous-route",
+            paint: {
+              "line-color": "#94a3b8",
+              "line-width": 2.6,
+              "line-dasharray": [3, 3],
+              "line-opacity": 0.72,
+            },
+          });
         if (!map.getLayer("real-route-line"))
           map.addLayer({
             id: "real-route-line",
@@ -1092,17 +1221,45 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
             source: "real-route",
             paint: { "line-color": "#36dcb5", "line-width": 4 },
           });
+        if (!map.getLayer("real-conflict-segments-glow"))
+          map.addLayer({
+            id: "real-conflict-segments-glow",
+            type: "line",
+            source: "real-conflict-segments",
+            paint: {
+              "line-color": "#ff4d5e",
+              "line-width": 11,
+              "line-blur": 4,
+              "line-opacity": 0.34,
+            },
+          });
+        if (!map.getLayer("real-conflict-segments-line"))
+          map.addLayer({
+            id: "real-conflict-segments-line",
+            type: "line",
+            source: "real-conflict-segments",
+            paint: {
+              "line-color": "#ef4444",
+              "line-width": 5.5,
+            },
+          });
         for (const id of ["real-buildings-fill", "real-buildings-outline"])
           map.setLayoutProperty(
             id,
             "visibility",
             p.layers.buildings ? "visible" : "none",
           );
-        map.setLayoutProperty(
+        for (const id of [
+          "real-previous-route-line",
           "real-route-line",
-          "visibility",
-          p.layers.routes ? "visible" : "none",
-        );
+          "real-conflict-segments-glow",
+          "real-conflict-segments-line",
+        ])
+          map.setLayoutProperty(
+            id,
+            "visibility",
+            p.layers.routes ? "visible" : "none",
+          );
         if (map.getLayer("geo-distance-line"))
           map.setLayoutProperty(
             "geo-distance-line",
@@ -1183,6 +1340,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           p.liveMode || !p.layers.scan || !p.playing || p.reducedMotion,
         );
         syncOverlays();
+        syncNationalFlysafe();
         syncNavigation();
         if (p.navigation?.aircraft) {
           droneEl.hidden = !mapReady;
@@ -1202,7 +1360,7 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
                 ? "卫星底图暂不可用 · 主题底图可用"
                 : "卫星实景 · Esri World Imagery"
               : online
-                ? "真实底图 · CARTO"
+                ? "真实底图 · CARTO Positron"
                 : "底图离线 · 坐标可用",
           );
         }
@@ -1364,11 +1522,14 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
           return;
         }
         if (sourceId?.startsWith("weather-")) return;
+        if (sourceId && basemapSourceIds.has(sourceId) && event.tile)
+          basemapHasTiles = true;
         if (
           sourceId &&
           basemapSourceIds.has(sourceId) &&
           event.isSourceLoaded &&
-          event.tile
+          // MapLibre can signal source completion in a later idle event without a tile.
+          basemapHasTiles
         ) {
           if (!online) {
             online = true;
@@ -1477,11 +1638,6 @@ export default forwardRef<GeoMapHandle, GeoMapProps>(
         runtime.current = null;
       };
     }, []);
-    useEffect(() => {
-      if (loadedTheme.current === theme) return;
-      loadedTheme.current = theme;
-      void runtime.current?.reload(true);
-    }, [theme]);
     useEffect(() => {
       const map = runtime.current?.map;
       if (map)

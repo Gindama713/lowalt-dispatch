@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "低空应急配送手机端第一期，只查看和发起规划，不下发飞控指令"
+    },
+    {
+      "name": "ability_desc",
+      "value": "低空调度入口"
+    },
+    {
+      "name": "ability_label",
+      "value": "低空调度"
+    },
+    {
+      "name": "perm_internet_reason",
+      "value": "连接可配置的规划服务，读取健康状态、任务、场景和航线"
+    },
+    {
+      "name": "perm_network_info_reason",
+      "value": "查看手机当前是 Wi-Fi 还是蜂窝网络，便于确认能否访问局域网里的后端"
+    }
+  ]
+}

@@ -1124,6 +1124,12 @@ export default function Portal() {
           embedded
           readOnly={!can("task.create")}
           initialLive={pathname === "/fleet"}
+          initialMapKind={
+            new URLSearchParams(window.location.search).get("map") ===
+            "shenzhen"
+              ? "shenzhen"
+              : undefined
+          }
         />
       </Suspense>
     );
@@ -1240,6 +1246,22 @@ export default function Portal() {
             )}
           </nav>
           <div className="p-sidebar-bottom">
+            {can("map.read") && (
+              <button
+                className="p-guide-link"
+                onClick={() => go("/airspace?map=shenzhen")}
+              >
+                <Compass size={17} />
+                <span>深圳三维大厅</span>
+              </button>
+            )}
+            <button
+              className="p-guide-link"
+              onClick={() => window.location.assign("/demo")}
+            >
+              <Sparkles size={17} />
+              <span>竞赛演示回放</span>
+            </button>
             <button className="p-guide-link" onClick={() => go("/help")}>
               <BookOpen size={18} />
               <span>新手使用指南</span>

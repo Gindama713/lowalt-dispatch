@@ -59,6 +59,47 @@ export type DemoFrame = ReturnType<typeof frameAt>;
 
 export type VisualChoice = "auto" | "city" | "detail" | "studio";
 export type VisualView = "city" | "detail" | "studio";
+export type StudioExplode = "auto" | "assembled" | "exploded";
+
+/**
+ * Historical planning snapshot shipped with the Antigravity package.
+ * Commit e9674ab, example vehicle, planning layer only. Not a re-run of
+ * this branch and not a flight test.
+ */
+export const frozenEvalBaseline = {
+  commit: "e9674ab",
+  suite: "v0.yaml（20 场景 × 3 种子 = 120 组）",
+  vehicleNote:
+    "示例机型 example_not_real · 历史规划评测快照，非本分支重跑，非实飞",
+  staticFeasible: 36,
+  staticReturned: 57,
+  staticUnsafeRoutes: 21,
+  staticNegativeRoutes: 12,
+  staticP50LengthM: 3018,
+  diversionFeasible: 39,
+  diversionReturned: 39,
+  diversionUnsafeRoutes: 0,
+  diversionNegativeRoutes: 0,
+  diversionP50LengthM: 2832,
+  validatorSummary: "14 通过 / 5 拒绝 / 1 无航线",
+  cases: [
+    {
+      id: "S2-03",
+      tag: "主动绕行通过",
+      detail: "快照记录：基线侵入限制区判失败；约束绕行后余量为正",
+    },
+    {
+      id: "S1-01",
+      tag: "负余量剪枝",
+      detail: "快照记录：基线终点余量为负；约束搜索拒绝该风险航线",
+    },
+    {
+      id: "S2-01",
+      tag: "时变禁飞剪枝",
+      detail: "快照记录：基线侵入已激活的 R01；约束搜索按禁飞与备降剪枝",
+    },
+  ],
+} as const;
 
 /** The studio shot is a purely visual insert within the fictional replay. */
 export function visualViewAt(
@@ -69,6 +110,21 @@ export function visualViewAt(
   if (seconds >= 34 && seconds < 49) return "studio";
   if (seconds >= 32 && seconds < 52) return "detail";
   return "city";
+}
+
+function smoothstep01(x: number): number {
+  const t = Math.max(0, Math.min(1, x));
+  return t * t * (3 - 2 * t);
+}
+
+/** Deterministic CR30 exploded-view factor (0 = assembled, 1 = full explosion). */
+export function studioExplodeAt(mode: StudioExplode, seconds: number): number {
+  if (mode === "assembled") return 0;
+  if (mode === "exploded") return 1;
+  if (seconds < 36.5 || seconds >= 48.2) return 0;
+  if (seconds < 40.5) return smoothstep01((seconds - 36.5) / 4.0);
+  if (seconds < 44.5) return 1;
+  return 1 - smoothstep01((seconds - 44.5) / 3.7);
 }
 
 export function timeLabel(seconds: number) {

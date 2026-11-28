@@ -44,7 +44,10 @@ export function AirspaceLegend({ nav }: { nav: NavigationController }) {
               <b>{nav.regions.filter((r) => r.kind === id).length}</b>
             </label>
           ))}
-          <p>数量为本次载入总数；隐藏仅影响显示。厂商图层不等于官方许可。</p>
+          <p>
+            数量为本次载入总数；隐藏仅影响显示，不取消避让。大疆 FlySafe
+            厂商地理围栏参考不等于官方许可。
+          </p>
           <button
             onClick={() => {
               nav.setOpen(true);
@@ -80,7 +83,9 @@ export default function Airspace({
         <div>
           <h3>看清区域，也看清来源</h3>
           <p>
-            分类和颜色用于阅读地图；未接入全国禁限飞数据库。导入前请核实数据使用权限、坐标、版本与有效期。
+            主数据源是大疆 FlySafe 厂商地理围栏参考，不是法定空域，不是 UOM /
+            国家地图官网 / 天地图，也不是飞行批准。查询失败或 0
+            个区域表示未知，不是放行。手动导入和演练走廊只作附加对照。
           </p>
         </div>
         <div className="nav-inline">
@@ -97,7 +102,7 @@ export default function Airspace({
           />
           <button className="nav-button" onClick={() => file.current?.click()}>
             <Upload size={14} />
-            导入空域 GeoJSON
+            手动导入 GeoJSON（附加）
           </button>
           <button
             className="nav-link"
@@ -124,8 +129,28 @@ export default function Airspace({
         ))}
       </div>
       <p className="nav-note">
-        计数为本次载入总数，不是当前视野或全国总数；没有数据不表示该地点没有限制。示例区域始终标记为演练，区域不会自动加入规划器或修改飞控电子围栏。
+        计数为本次载入总数，不是当前视野或全国总数；没有数据不表示该地点没有限制，空的
+        FlySafe 结果也不是放行。全国范围的大疆 FlySafe
+        厂商围栏是单独的地图图层，默认打开，不写入这条航线的约束快照，也不跟着工单切换被清掉。尚未过期的禁飞区与内部管制区会写入服务端约束快照并纳入二维全高度避让，隐藏分类仅影响地图显示、不会取消避让约束，也不会修改飞控电子围栏。
       </p>
+      {nav.activeSnapshot &&
+        nav.activeSnapshot.source_status !== "not_loaded" && (
+          <p className="nav-note" data-testid="airspace-panel-snapshot">
+            当前服务端快照：<code>{nav.activeSnapshot.snapshot_id}</code> · 摘要{" "}
+            <code>{nav.activeSnapshot.digest.slice(0, 23)}…</code> · 纳入硬避让{" "}
+            {nav.activeSnapshot.enforced_zone_count} /{" "}
+            {nav.activeSnapshot.total_zone_count} 个区域
+          </p>
+        )}
+      {nav.activeSnapshot?.failure_reason ? (
+        <p
+          className="nav-note"
+          role="status"
+          data-testid="flysafe-refresh-note"
+        >
+          {nav.activeSnapshot.failure_reason}
+        </p>
+      ) : null}
       {nav.regionError && (
         <div className="nav-error" role="alert">
           {nav.regionError}
@@ -232,7 +257,7 @@ export default function Airspace({
           </div>
           <div className="nav-start-row">
             <p>
-              区域资料仅在本次页面会话保留。适飞、授权或未触发告警均不代表可以起飞。
+              当前区域已同步至服务端约束快照，刷新页面或恢复绑定工单后仍可找回。通过已知区域检查不代表获准起飞。
             </p>
             <div className="nav-inline">
               <button
@@ -258,11 +283,7 @@ export default function Airspace({
               </button>
               <button
                 className="nav-link"
-                onClick={() => {
-                  nav.setRegions([]);
-                  nav.setSelectedRegion("");
-                  nav.notify("本次导入图层已移除；未改变真实空域或飞控限制");
-                }}
+                onClick={() => void nav.clearAirspace("clear")}
               >
                 移除本次导入图层
               </button>
@@ -273,7 +294,13 @@ export default function Airspace({
         <div className="nav-empty">
           <Layers size={25} />
           <div>
-            <strong>尚未载入区域边界</strong>
+            <strong>
+              {nav.activeSnapshot?.source_status === "unavailable"
+                ? "大疆 FlySafe 不可用或为空（未知，不是放行）"
+                : nav.activeSnapshot?.source_status === "known_empty"
+                  ? "当前已知空域快照显式为空（0 个区域）"
+                  : "尚未载入区域边界"}
+            </strong>
             <p>
               已提供分类图例与导入入口。请提供有来源的 WGS84 GeoJSON
               后显示真实边界；不会将构造示例自动画到真实地图。

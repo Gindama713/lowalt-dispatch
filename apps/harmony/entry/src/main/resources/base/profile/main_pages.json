@@ -1,0 +1,11 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/TaskListPage",
+    "pages/TaskCreatePage",
+    "pages/TaskDetailPage",
+    "pages/MapPage",
+    "pages/AlertsPage",
+    "pages/SettingsPage"
+  ]
+}

@@ -59,6 +59,7 @@ FACTOR_CATALOG = (
     ("payload_limit", "载荷上限", "hard", False),
     ("vertical_clearance", "垂直净空", "hard", False),
     ("diversion_reachability", "备降可达", "hard", False),
+    ("known_airspace_snapshot", "已知限制区快照", "hard", False),
     ("airspace_notam", "NOTAM空域", "hard", False),
     ("terrain_clearance", "地形净空", "hard", False),
     ("energy_wh", "能耗", "info", False),
@@ -77,6 +78,7 @@ class EnvQuery(BaseModel):
     vehicle_key: str | None = None
     altitude_agl_m: float = Field(default=120.0, gt=0, le=500)
     waypoints: list[tuple[float, float]] | None = Field(default=None, min_length=2, max_length=1000)
+    airspace_snapshot_id: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def geographic(self):
@@ -430,6 +432,54 @@ def _build_factors(weather, query: EnvQuery, thresholds):
         )
     add("vertical_clearance", status="not_evaluated", reason="垂直净空未判定")
     add("diversion_reachability", status="not_evaluated", reason="无备降几何数据，不能据此判不能飞")
+    from services.assistant.airspace_snapshot import (
+        check_route_against_snapshot,
+    )
+    from services.assistant.airspace_snapshot import (
+        store as airspace_store,
+    )
+
+    air_snap = (
+        airspace_store.resolve(snapshot_id=query.airspace_snapshot_id, scheduled_for=query.scheduled_for)
+        if query.airspace_snapshot_id
+        else airspace_store.get_active()
+    )
+    if air_snap is None or air_snap.source_status in {"not_loaded", "query_failed", "unavailable"}:
+        if air_snap is not None and air_snap.source_status == "unavailable":
+            air_reason = (
+                f"大疆 FlySafe 厂商地理围栏不可用或为空：{air_snap.failure_reason or '未知原因'}。"
+                "空域未知，不是放行。这不是 assess_route_environment 的法定空域结论。"
+            )
+            air_factor = "unavailable"
+        elif air_snap is not None and air_snap.source_status == "query_failed":
+            air_reason = f"空域快照读取失败：{air_snap.failure_reason or '未知原因'}"
+            air_factor = "unavailable"
+        else:
+            air_reason = "未导入空域约束快照，仅完成建筑避障"
+            air_factor = "not_evaluated"
+        add(
+            "known_airspace_snapshot",
+            status=air_factor,
+            reason=air_reason,
+        )
+    else:
+        air_check = check_route_against_snapshot(
+            query.waypoints or [query.origin, query.destination],
+            air_snap,
+            scheduled_for=query.scheduled_for,
+        )
+        conflicts = air_check.get("conflicts") or []
+        add(
+            "known_airspace_snapshot",
+            status="modeled",
+            value=len(conflicts),
+            unit="处冲突",
+            threshold=0.0,
+            threshold_source=f"snapshot:{air_snap.snapshot_id} ({air_snap.digest[:19]}…)",
+            segment_index=conflicts[0]["segment_index"] if conflicts else None,
+            reason=air_check.get("verdict_label") or "",
+            hard_failed=bool(conflicts),
+        )
     add("airspace_notam", status="not_evaluated", reason="未接入 NOTAM/UOM，需人工核对")
     add("terrain_clearance", status="not_evaluated", reason="地形净空未判定")
     energy = weather.get("energy") or {}
@@ -485,6 +535,7 @@ def _request_key(query: EnvQuery):
         query.vehicle_key or "",
         round(query.altitude_agl_m, 1),
         tuple(query.waypoints or []),
+        query.airspace_snapshot_id or "",
         ALGO_VERSION,
     )
 

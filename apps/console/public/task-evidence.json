@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source_commit": "38ada37cdfb73d6b76321f5846b7c4e7b16d899f",
+  "source_commit": "2b8d743b1447a39e6ad0b4d54a560b51028863b5",
   "source_worktree_dirty": true,
   "source_hashes": {
     "apps/console/scripts/export_scene.py": "44767509df2492ab779e503046d87252990acd63dd3db1b548ebd958a49a0d9a",
@@ -13,10 +13,10 @@
     "planner/__init__.py": "346ba4a0758b83e3fda1b9b4e319e31198386e806c6102018445d3c983930a6b",
     "planner/assemble.py": "f8b5fd4da4dd229b7ba86bb18e44d74d77111652d74148b95f801f5c80333bbb",
     "planner/astar.py": "b3e58a20c5776a1cc7f45825f46abfa101b8764f2c4984866761275905b1d73f",
-    "planner/diversion.py": "bf7ed4596a41d5cba3d153dda8eeb3392075b8d9370e4254bbbbed5adff41114",
+    "planner/diversion.py": "728b45a0fa8f44738783ad45b2322c684413c9b5e7c8dfde3012471b9cd4d580",
     "planner/georef.py": "ac184e5d4f8bf3183bfa93b686300d2afe1064fb1b6a8fbb2843969b72948b83",
     "planner/grid.py": "d8dd31679e1db93018a500a92ab8f3f2404c61c155294af37a5ad0efc044a79c",
-    "planner/real.py": "a85526c6f3baabd7470558014306c33f67a857134ac21516b6c8eadd46c07fbe",
+    "planner/real.py": "a9553cf4be5c2af95101775582503007b6b649b9ad37adbb964a10302e2f998e",
     "planner/scene.py": "d2986fa315c197a2aa21b684db1f4e71da4663fd9e0b9a9221aa43d6ac692d39",
     "scenarios/v0/landing_sites.geojson": "de08bb4e35e8481188424fc8e233261a14bc82aac6eb98c97df2af496c3f3e04",
     "scenarios/v0/obstacles.geojson": "20be3a694bf908a41beffbf7dfa5197d4ad4aae3eac6136fac0f8d4b7c5fa43d",
@@ -80,7 +80,7 @@
         "provenance": {
           "source": "sim:scenario_v0",
           "version": "v0",
-          "captured_at": "2026-11-25T11:04:56.999759Z",
+          "captured_at": "2026-11-28T10:24:21.345087Z",
           "valid_from": null,
           "valid_until": null,
           "is_simulated": true,
@@ -88,9 +88,9 @@
         }
       },
       "snapshot": {
-        "snapshot_id": "SNAP-S1-02-20261125T110456",
-        "captured_at": "2026-11-25T11:04:56.999759Z",
-        "valid_until": "2026-11-25T11:34:56.999759Z",
+        "snapshot_id": "SNAP-S1-02-20261128T102421",
+        "captured_at": "2026-11-28T10:24:21.345087Z",
+        "valid_until": "2026-11-28T10:54:21.345087Z",
         "landing_sites": [
           {
             "site_id": "L1",
@@ -113,7 +113,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -141,7 +141,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -169,7 +169,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -197,7 +197,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -211,7 +211,7 @@
       "route": {
         "route_id": "T-S1-02-evidence-v1",
         "plan_version": "evidence-v1",
-        "snapshot_id": "SNAP-S1-02-20261125T110456",
+        "snapshot_id": "SNAP-S1-02-20261128T102421",
         "algorithm": "astar_diversion",
         "waypoints": [
           {
@@ -2566,7 +2566,7 @@
         ],
         "energy_budget_wh": 240.0,
         "diversion_site_id": null,
-        "valid_until": "2026-11-25T11:34:56.999759Z",
+        "valid_until": "2026-11-28T10:54:21.345087Z",
         "checks": []
       }
     },
@@ -2620,7 +2620,7 @@
         "provenance": {
           "source": "sim:scenario_v0",
           "version": "v0",
-          "captured_at": "2026-11-25T11:04:56.999759Z",
+          "captured_at": "2026-11-28T10:24:21.345087Z",
           "valid_from": null,
           "valid_until": null,
           "is_simulated": true,
@@ -2628,9 +2628,9 @@
         }
       },
       "snapshot": {
-        "snapshot_id": "SNAP-S1-01-20261125T110456",
-        "captured_at": "2026-11-25T11:04:56.999759Z",
-        "valid_until": "2026-11-25T11:34:56.999759Z",
+        "snapshot_id": "SNAP-S1-01-20261128T102421",
+        "captured_at": "2026-11-28T10:24:21.345087Z",
+        "valid_until": "2026-11-28T10:54:21.345087Z",
         "landing_sites": [
           {
             "site_id": "L1",
@@ -2653,7 +2653,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -2681,7 +2681,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -2709,7 +2709,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -2737,7 +2737,7 @@
             "provenance": {
               "source": "sim:scenario_v0",
               "version": "v0",
-              "captured_at": "2026-11-25T11:04:56.999759Z",
+              "captured_at": "2026-11-28T10:24:21.345087Z",
               "valid_from": null,
               "valid_until": null,
               "is_simulated": true,
@@ -2751,7 +2751,7 @@
       "route": {
         "route_id": "T-S1-01-evidence-v1",
         "plan_version": "evidence-v1",
-        "snapshot_id": "SNAP-S1-01-20261125T110456",
+        "snapshot_id": "SNAP-S1-01-20261128T102421",
         "algorithm": "astar_static",
         "waypoints": [
           {
@@ -5151,7 +5151,7 @@
         ],
         "energy_budget_wh": 240.0,
         "diversion_site_id": null,
-        "valid_until": "2026-11-25T11:34:56.999759Z",
+        "valid_until": "2026-11-28T10:54:21.345087Z",
         "checks": []
       }
     }
@@ -5161,9 +5161,9 @@
       "task_id": "T-S1-02",
       "route_id": "T-S1-02-evidence-v1",
       "plan_version": "evidence-v1",
-      "snapshot_id": "SNAP-S1-02-20261125T110456",
-      "route_digest": "699ca5e71ca97895f6bed11b92d51f4358ec7f9d03d40eec8aadf9169957aee6",
-      "verified_at": "2026-11-25T11:04:56.999759Z",
+      "snapshot_id": "SNAP-S1-02-20261128T102421",
+      "route_digest": "09613e49021d78abce84d1d288baf2a17cdd208800a78209e4a6e69b63a94551",
+      "verified_at": "2026-11-28T10:24:21.345087Z",
       "vehicle_state_ts": null,
       "checks": [
         {
@@ -5207,9 +5207,9 @@
       "task_id": "T-S1-01",
       "route_id": "T-S1-01-evidence-v1",
       "plan_version": "evidence-v1",
-      "snapshot_id": "SNAP-S1-01-20261125T110456",
-      "route_digest": "ff80617a2fe24b7155a40b12bafaecfd969e06f9e39cc2618d7ddad0b60ea118",
-      "verified_at": "2026-11-25T11:04:56.999759Z",
+      "snapshot_id": "SNAP-S1-01-20261128T102421",
+      "route_digest": "f90905cc48a30bcd3f1eb98c55159afeddf12b1580e23d9e4df7d0d6f0d3dffc",
+      "verified_at": "2026-11-28T10:24:21.345087Z",
       "vehicle_state_ts": null,
       "checks": [
         {
@@ -5256,7 +5256,7 @@
       "task_id": "T-S1-02",
       "scenario_id": "S1-02",
       "source": "planner/diversion.py (astar_diversion) + validator/checks.py / scenarios/v0",
-      "generated_at": "2026-11-25T11:04:56.999759+00:00",
+      "generated_at": "2026-11-28T10:24:21.345087+00:00",
       "origin": "中心物资站",
       "destination": "河东救援点",
       "payload_kg": 0.8,
@@ -5264,7 +5264,7 @@
       "algorithm": "astar_diversion",
       "verdict": "passed",
       "route_id": "T-S1-02-evidence-v1",
-      "route_digest": "699ca5e71ca97895f6bed11b92d51f4358ec7f9d03d40eec8aadf9169957aee6",
+      "route_digest": "09613e49021d78abce84d1d288baf2a17cdd208800a78209e4a6e69b63a94551",
       "length_m": 3680.2937675242692,
       "waypoints": [
         [
@@ -7519,14 +7519,14 @@
       ],
       "dispatch_enabled": false,
       "is_simulated": true,
-      "revision": "43e90989a9657ea673dc7d602a08d5a2168dd7a78d6de9ed80db8858f051229c"
+      "revision": "59e9be14a3da11cc6e553491d0cffac735785aa743aeecdfa8228e27a3b600b9"
     },
     "contrast": {
       "case": "contrast",
       "task_id": "T-S1-01",
       "scenario_id": "S1-01",
       "source": "planner/diversion.py (astar_static) + validator/checks.py / scenarios/v0",
-      "generated_at": "2026-11-25T11:04:56.999759+00:00",
+      "generated_at": "2026-11-28T10:24:21.345087+00:00",
       "origin": "中心物资站",
       "destination": "河东救援点",
       "payload_kg": 1.0,
@@ -7534,7 +7534,7 @@
       "algorithm": "astar_static",
       "verdict": "rejected",
       "route_id": "T-S1-01-evidence-v1",
-      "route_digest": "ff80617a2fe24b7155a40b12bafaecfd969e06f9e39cc2618d7ddad0b60ea118",
+      "route_digest": "f90905cc48a30bcd3f1eb98c55159afeddf12b1580e23d9e4df7d0d6f0d3dffc",
       "length_m": 3664.823227814083,
       "waypoints": [
         [
@@ -9809,7 +9809,7 @@
       ],
       "dispatch_enabled": false,
       "is_simulated": true,
-      "revision": "a514b3d7823acf67550db9c1050fd101691bdc526c20efffa5a0c7e5e05448d9"
+      "revision": "508c59d1374f6692a5fde48f2836b7d638fae6acab42cd37d29f02c22e08837f"
     }
   }
 }

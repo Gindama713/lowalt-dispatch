@@ -1,4 +1,13 @@
-import type { AirspaceRegion } from "./navigation/airspace";
+import {
+  ACTIVE_SNAPSHOT_STORAGE_KEY,
+  flysafeOverviewPoints,
+  geojsonFromRegions,
+  regionsFromSnapshot,
+  type AirspaceCheckData,
+  type AirspaceRegion,
+  type ConstraintSnapshotData,
+} from "./navigation/airspace";
+import type { FeatureCollection } from "geojson";
 import { DispatchPanel, rememberedDispatchTask } from "./DispatchPanel";
 import { useTheme } from "./portal/Theme";
 import {
@@ -9,7 +18,12 @@ import {
 } from "./navigation/Navigation";
 import { parseRoutes, routeMetrics, type NavRoute } from "./navigation/engine";
 import { AirspaceLegend } from "./navigation/AirspacePanel";
-import { RealRoutingPanel, useRealRouting } from "./RealRouting";
+import {
+  RealRoutingPanel,
+  useRealRouting,
+  type ArchivedRouteVersion,
+  type StoredRealRoute,
+} from "./RealRouting";
 import {
   useCallback,
   useEffect,
@@ -81,7 +95,10 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import MapSurface, { type MapSurfaceHandle } from "./MapSurface";
+import MapSurface, {
+  type MapSurfaceHandle,
+  type MapSurfaceKind,
+} from "./MapSurface";
 import LocationPanel from "./LocationPanel";
 import { TerminalMap } from "./TerminalMap";
 import {
@@ -566,10 +583,12 @@ export default function App({
   embedded = false,
   readOnly = false,
   initialLive = false,
+  initialMapKind,
 }: {
   embedded?: boolean;
   readOnly?: boolean;
   initialLive?: boolean;
+  initialMapKind?: MapSurfaceKind;
 }) {
   const { theme } = useTheme();
   const preferences = useRef(loadPreferences()).current;
@@ -654,7 +673,15 @@ export default function App({
     waypoints: [number, number][];
     navigation?: NavRoute;
   } | null>(null);
-  const [mapKind, setMapKind] = useState<"world" | "terrain">("world");
+  const [mapKind, setMapKind] = useState<MapSurfaceKind>(() => {
+    if (initialMapKind) return initialMapKind;
+    const param = new URLSearchParams(window.location.search).get("map");
+    if (param === "shenzhen") return "shenzhen";
+    return "world";
+  });
+  useEffect(() => {
+    if (initialMapKind) setMapKind(initialMapKind);
+  }, [initialMapKind]);
   const [terminalMap, setTerminalMap] = useState(
     () => new URLSearchParams(window.location.search).get("map") === "terminal",
   );
@@ -690,6 +717,13 @@ export default function App({
       ? intakeSelection.id
       : null;
   const [planningRegions, setPlanningRegions] = useState<AirspaceRegion[]>([]);
+  const [nationalFlysafe, setNationalFlysafe] =
+    useState<FeatureCollection | null>(null);
+  const [nationalFlysafeKey, setNationalFlysafeKey] = useState("");
+  const [nationalFlysafeNote, setNationalFlysafeNote] = useState("");
+  const [activeSnapshot, setActiveSnapshot] =
+    useState<ConstraintSnapshotData | null>(null);
+  const [corridorBusy, setCorridorBusy] = useState(false);
   const [realSchedule, setRealSchedule] = useState<string | null>(null);
   const [autoRealRequest, setAutoRealRequest] = useState<{
     mission: GeoMission;
@@ -972,7 +1006,302 @@ export default function App({
     geoMission,
     showRealRoute,
     planningRegions,
+    activeSnapshot,
+    selectedIntakeId,
   );
+
+  // Restore server-persisted active ConstraintSnapshot across page refreshes & server restarts.
+  useEffect(() => {
+    let savedId: string | null = null;
+    try {
+      savedId = localStorage.getItem(ACTIVE_SNAPSHOT_STORAGE_KEY);
+    } catch {
+      savedId = null;
+    }
+    if (!savedId) return;
+    const controller = new AbortController();
+    fetch(`/api/assistant/airspace/snapshots/${encodeURIComponent(savedId)}`, {
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((snap: ConstraintSnapshotData | null) => {
+        if (controller.signal.aborted || !snap) return;
+        setActiveSnapshot(snap);
+        setPlanningRegions(regionsFromSnapshot(snap));
+      })
+      .catch(() => {
+        /* Offline or mocked browser tests keep empty initial state. */
+      });
+    return () => controller.abort();
+  }, []);
+
+  const flysafeOrigin = geoMission.origin?.point.join(",") ?? "";
+  const flysafeDestination = geoMission.destination?.point.join(",") ?? "";
+  const flysafePreserveRef = useRef<string | null>(null);
+  flysafePreserveRef.current = activeSnapshot?.snapshot_id ?? null;
+  const planningRegionsRef = useRef(planningRegions);
+  planningRegionsRef.current = planningRegions;
+  const applyAirspaceSnapshot = useCallback(
+    (snap: ConstraintSnapshotData) => {
+      const incoming = regionsFromSnapshot(snap);
+      const keepShown =
+        planningRegionsRef.current.length > 0 &&
+        (snap.source_status === "unavailable" || incoming.length === 0);
+      if (keepShown) {
+        setActiveSnapshot((prev) =>
+          prev
+            ? {
+                ...prev,
+                failure_reason: snap.failure_reason || prev.failure_reason,
+              }
+            : prev,
+        );
+        return;
+      }
+      setActiveSnapshot(snap);
+      setPlanningRegions(incoming);
+      if (!incoming.length) return;
+      setDemoVisible(false);
+      setMapKind("world");
+      setShowGeographic(true);
+      setLayers((current) => ({ ...current, restrictions: true }));
+      const focus = flysafeOverviewPoints(
+        geoMission.origin?.point,
+        geoMission.destination?.point,
+        incoming,
+      );
+      if (focus.length) map.current?.overview(focus);
+      try {
+        localStorage.setItem(ACTIVE_SNAPSHOT_STORAGE_KEY, snap.snapshot_id);
+      } catch {
+        /* Ignore storage errors. */
+      }
+    },
+    [geoMission.destination?.point, geoMission.origin?.point],
+  );
+  useEffect(() => {
+    if (!flysafeOrigin || !flysafeDestination || realRouting.busy) return;
+    const origin = flysafeOrigin.split(",").map(Number);
+    const destination = flysafeDestination.split(",").map(Number);
+    if (origin.length !== 2 || destination.length !== 2) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const parsedBuf = Number(realRouting.zoneBufferM);
+      const zoneBufferM =
+        Number.isFinite(parsedBuf) && parsedBuf >= 0 && parsedBuf <= 500
+          ? parsedBuf
+          : 0;
+      void fetch("/api/assistant/airspace/flysafe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Aeris-Request": "1",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          origin,
+          destination,
+          zone_buffer_m: zoneBufferM,
+          scheduled_for: realSchedule,
+          preserve_snapshot_id: flysafePreserveRef.current,
+        }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { snapshot?: ConstraintSnapshotData | null } | null) => {
+          if (controller.signal.aborted || !data?.snapshot) return;
+          applyAirspaceSnapshot(data.snapshot);
+        })
+        .catch(() => {
+          /* Disabled, offline, or aborted. Do not invent zones. */
+        });
+    }, 600);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    flysafeOrigin,
+    flysafeDestination,
+    realRouting.busy,
+    realRouting.zoneBufferM,
+    realSchedule,
+    applyAirspaceSnapshot,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const adopt = (data: {
+      status?: string;
+      note?: string;
+      fetched_at?: string | null;
+      zone_count?: number;
+      incomplete?: boolean;
+      features?: FeatureCollection;
+    }) => {
+      const features = data.features?.features;
+      if (Array.isArray(features) && features.length && data.features) {
+        setNationalFlysafe(data.features);
+        setNationalFlysafeKey(
+          `${data.fetched_at ?? ""}|${data.zone_count ?? features.length}|${data.incomplete ? 1 : 0}`,
+        );
+        setNationalFlysafeNote(data.note || "");
+      } else if (
+        data.note &&
+        data.status !== "disabled" &&
+        data.status !== "empty"
+      ) {
+        setNationalFlysafeNote(data.note);
+      }
+    };
+    const headers = { "X-Aeris-Request": "1" };
+    void fetch("/api/assistant/airspace/flysafe/national", { headers })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        adopt(data);
+        if (data.status === "disabled") return;
+        return fetch("/api/assistant/airspace/flysafe/national", {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ force: false }),
+        });
+      })
+      .then((res) => (res && "ok" in res ? (res.ok ? res.json() : null) : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        adopt(data);
+      })
+      .catch(() => {
+        /* Keep whatever overlay is already on the map. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const snap = realRouting.result?.constraint_snapshot;
+    if (
+      !snap ||
+      (snap.source_status !== "manufacturer_reference" &&
+        snap.source_status !== "unavailable")
+    ) {
+      return;
+    }
+    applyAirspaceSnapshot(snap);
+  }, [realRouting.result, applyAirspaceSnapshot]);
+
+  const syncAirspaceToServer = useCallback(
+    async (
+      regions: AirspaceRegion[],
+      mode: "replace" | "known_empty" | "clear" = "replace",
+    ): Promise<ConstraintSnapshotData | null> => {
+      try {
+        const parsedBuf = Number(realRouting.zoneBufferM);
+        const zoneBufferM =
+          Number.isFinite(parsedBuf) && parsedBuf >= 0 && parsedBuf <= 500
+            ? parsedBuf
+            : 0;
+        const response = await fetch("/api/assistant/airspace/snapshot", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Aeris-Request": "1",
+          },
+          body: JSON.stringify({
+            mode,
+            geojson: mode === "replace" ? geojsonFromRegions(regions) : null,
+            zone_buffer_m: zoneBufferM,
+            scheduled_for: realSchedule,
+            set_active: true,
+          }),
+        });
+        if (!response.ok) return null;
+        const snap = (await response.json()) as ConstraintSnapshotData;
+        setActiveSnapshot(snap);
+        try {
+          if (mode === "clear") {
+            localStorage.removeItem(ACTIVE_SNAPSHOT_STORAGE_KEY);
+          } else {
+            localStorage.setItem(ACTIVE_SNAPSHOT_STORAGE_KEY, snap.snapshot_id);
+          }
+        } catch {
+          /* Storage may be unavailable in private mode. */
+        }
+        return snap;
+      } catch {
+        return null;
+      }
+    },
+    [realRouting.zoneBufferM, realSchedule],
+  );
+
+  const addCorridorSimulationZone = useCallback(async () => {
+    if (!geoMission.origin || !geoMission.destination || corridorBusy) return;
+    setCorridorBusy(true);
+    try {
+      const parsedBuf = Number(realRouting.zoneBufferM);
+      const zoneBufferM =
+        Number.isFinite(parsedBuf) && parsedBuf >= 0 && parsedBuf <= 500
+          ? parsedBuf
+          : 0;
+      const waypoints = realRouting.route?.waypoints.map((p) => [p.x, p.y]);
+      const response = await fetch(
+        "/api/assistant/airspace/simulate-corridor",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Aeris-Request": "1",
+          },
+          body: JSON.stringify({
+            origin: geoMission.origin.point,
+            destination: geoMission.destination.point,
+            waypoints: waypoints && waypoints.length >= 2 ? waypoints : null,
+            append: planningRegions.length > 0,
+            zone_buffer_m: zoneBufferM,
+            scheduled_for: realSchedule,
+          }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          typeof data.detail === "string"
+            ? data.detail
+            : "无法生成演练禁飞区快照",
+        );
+      }
+      const snap = data.snapshot as ConstraintSnapshotData;
+      const nextRegions = regionsFromSnapshot(snap);
+      setActiveSnapshot(snap);
+      setPlanningRegions(nextRegions);
+      setLayers((curr) => ({ ...curr, restrictions: true, routes: true }));
+      try {
+        localStorage.setItem(ACTIVE_SNAPSHOT_STORAGE_KEY, snap.snapshot_id);
+      } catch {
+        /* Ignore storage errors. */
+      }
+      const conflictCount = data.route_check?.conflicts?.length ?? 0;
+      notify(
+        conflictCount > 0
+          ? `已加入演练限制区（快照 ${snap.snapshot_id}）：原路线检出 ${conflictCount} 处冲突（已标红），请点击重新规划`
+          : `已加入演练限制区（快照 ${snap.snapshot_id}），请点击计算航线`,
+      );
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "演练禁飞区生成失败");
+    } finally {
+      setCorridorBusy(false);
+    }
+  }, [
+    geoMission,
+    corridorBusy,
+    realRouting.zoneBufferM,
+    realRouting.route,
+    planningRegions.length,
+    realSchedule,
+    notify,
+  ]);
   const realPlanningMode =
     !liveMode &&
     Boolean(
@@ -1017,22 +1346,10 @@ export default function App({
           destination?: { name?: string; point?: number[]; crs?: string };
           scheduled_for?: string | null;
           payload_kg?: number | null;
-          real_route?: {
-            status?: string;
-            waypoints?: {
-              x?: number;
-              y?: number;
-              lng?: number;
-              lat?: number;
-            }[];
-            length_m?: number | null;
-            clearance_m?: number | null;
-            resolution_used_m?: number | null;
-            obstacle_source?: string | null;
-            warnings?: string[];
-            note?: string | null;
-            reason?: string | null;
-          } | null;
+          constraint_snapshot?: ConstraintSnapshotData | null;
+          airspace_check?: AirspaceCheckData | null;
+          route_history?: ArchivedRouteVersion[];
+          real_route?: (StoredRealRoute & { reason?: string | null }) | null;
         }) => {
           const place = (value: typeof item.origin) =>
             value?.point?.length === 2 && value.crs === "EPSG:4326"
@@ -1055,12 +1372,40 @@ export default function App({
             points: JSON.stringify([origin.point, destination.point]),
           });
           setRealSchedule(item.scheduled_for ?? null);
+          // Restore the intake's server-saved ConstraintSnapshot onto map & workspace
+          // whenever the browser doesn't already hold a newer explicit workspace override.
+          let existingPointer: string | null = null;
+          try {
+            existingPointer = localStorage.getItem(ACTIVE_SNAPSHOT_STORAGE_KEY);
+          } catch {
+            existingPointer = null;
+          }
+          if (
+            item.constraint_snapshot &&
+            item.constraint_snapshot.source_status !== "not_loaded" &&
+            !existingPointer
+          ) {
+            setActiveSnapshot(item.constraint_snapshot);
+            setPlanningRegions(regionsFromSnapshot(item.constraint_snapshot));
+            try {
+              localStorage.setItem(
+                ACTIVE_SNAPSHOT_STORAGE_KEY,
+                item.constraint_snapshot.snapshot_id,
+              );
+            } catch {
+              /* Ignore storage errors. */
+            }
+          }
           setDemoVisible(false);
           setPlaying(false);
           setTerminalMap(false);
           setMapKind("world");
           setShowGeographic(true);
-          setLayers((current) => ({ ...current, routes: true }));
+          setLayers((current) => ({
+            ...current,
+            routes: true,
+            restrictions: true,
+          }));
           // The map may still be initialising; retry once after it mounts.
           const focus = () =>
             map.current?.overview([origin.point, destination.point]);
@@ -1075,10 +1420,13 @@ export default function App({
               item.scheduled_for ?? null,
               item.payload_kg,
               { origin, destination },
+              item.constraint_snapshot ?? null,
+              item.airspace_check ?? null,
+              item.route_history,
             )
           ) {
             setAutoRealRequest(null);
-            notify("已载入工单和工单里已保存的真实避障航线");
+            notify("已载入工单和工单绑定的航线与空域约束快照");
             return;
           }
           if (stored?.status === "pending" && item.intake_id) {
@@ -1102,14 +1450,29 @@ export default function App({
                   const route = latest?.real_route;
                   if (route?.status === "ok") {
                     window.clearInterval(timer);
+                    if (
+                      latest.constraint_snapshot &&
+                      latest.constraint_snapshot.source_status !== "not_loaded"
+                    ) {
+                      setActiveSnapshot(latest.constraint_snapshot);
+                      setPlanningRegions(
+                        regionsFromSnapshot(latest.constraint_snapshot),
+                      );
+                    }
                     realRouting.hydrate(
                       route,
                       latest.scheduled_for ?? null,
                       latest.payload_kg,
                       { origin, destination },
+                      latest.constraint_snapshot ?? null,
+                      latest.airspace_check ?? null,
+                      latest.route_history,
                     );
                     notify("工单航线已计算完成");
-                  } else if (route?.status === "unavailable") {
+                  } else if (
+                    route?.status === "unavailable" ||
+                    route?.status === "no_route"
+                  ) {
                     window.clearInterval(timer);
                     notify("工单航线计算失败：" + (route.reason || "未知原因"));
                   }
@@ -1253,22 +1616,42 @@ export default function App({
   );
   const nav = useNavigation({
     onRealCandidates: (route) => {
+      const firstPt: LngLat = [route.waypoints[0].x, route.waypoints[0].y];
+      const lastPt: LngLat = [
+        route.waypoints[route.waypoints.length - 1].x,
+        route.waypoints[route.waypoints.length - 1].y,
+      ];
+      const sameEndpoints =
+        geoMission.origin &&
+        geoMission.destination &&
+        Math.hypot(
+          geoMission.origin.point[0] - firstPt[0],
+          geoMission.origin.point[1] - firstPt[1],
+        ) < 1e-5 &&
+        Math.hypot(
+          geoMission.destination.point[0] - lastPt[0],
+          geoMission.destination.point[1] - lastPt[1],
+        ) < 1e-5;
       const place = (p: (typeof route.waypoints)[number]): GeoPlace => ({
         name: p.label,
         point: [p.x, p.y],
         source: "coordinates",
         capturedAt: new Date().toISOString(),
       });
-      const mission = {
-        origin: place(route.waypoints[0]),
-        destination: place(route.waypoints[route.waypoints.length - 1]),
-      };
-      setGeoMission(mission);
+      const mission = sameEndpoints
+        ? geoMission
+        : {
+            origin: place(route.waypoints[0]),
+            destination: place(route.waypoints[route.waypoints.length - 1]),
+          };
+      if (!sameEndpoints) setGeoMission(mission);
       setAutoRealRequest({ mission, scheduledFor: realSchedule });
-      notify("正在按当前路线起终点与导入限制区重新规划");
+      notify("正在按当前路线起终点与服务端约束快照重新规划");
     },
     regions: planningRegions,
     setRegions: setPlanningRegions,
+    activeSnapshot,
+    onSyncAirspace: syncAirspaceToServer,
     liveMode,
     liveFrame,
     liveStatus,
@@ -1345,10 +1728,17 @@ export default function App({
     nav.setFollow(false);
   }, [locationOpen, weatherLayer, mapKind, showTerminal]);
   useEffect(() => {
-    if (nav.enabled && (mapKind === "terrain" || showTerminal)) {
+    if (
+      nav.enabled &&
+      (mapKind === "terrain" || mapKind === "shenzhen" || showTerminal)
+    ) {
       nav.setEnabled(false);
       nav.setFollow(false);
-      notify("已暂停导航参考；地形实验和终端视图保留原场景，飞控任务未受影响");
+      notify(
+        mapKind === "shenzhen"
+          ? "已暂停导航参考；深圳三维是艺术场景，不是当前 WGS84 航线，飞控任务未受影响"
+          : "已暂停导航参考；地形实验和终端视图保留原场景，飞控任务未受影响",
+      );
     }
   }, [nav.enabled, mapKind, showTerminal]);
   const navigationOverview = () => {
@@ -1567,6 +1957,7 @@ export default function App({
       geographic_mission: {
         crs: "EPSG:4326",
         ...geoMission,
+        intake_id: selectedIntakeId,
         route_status: realRouting.busy
           ? "pending"
           : realRouting.route
@@ -1574,7 +1965,15 @@ export default function App({
             : realRouting.error
               ? "unavailable"
               : "not_planned",
+        route_version: realRouting.routeVersion,
         route: realRouting.route,
+        constraint_snapshot:
+          realRouting.result?.constraint_snapshot ?? activeSnapshot ?? null,
+        airspace_check: realRouting.snapshotStale
+          ? realRouting.liveRecheck
+          : (realRouting.result?.airspace_check ?? null),
+        snapshot_stale: realRouting.snapshotStale,
+        previous_version: realRouting.previousComparison,
         scene_id: realRouting.result?.scene_id ?? null,
         planning_result: realRouting.result,
         scene: realRouting.scene,
@@ -2045,13 +2444,13 @@ export default function App({
                     ? "LOCAL ENU / ASCII"
                     : showLocalTrack
                       ? (position?.frame ?? "局部定位")
-                      : mapKind === "world"
-                        ? basemap === "satellite"
-                          ? "ESRI WORLD IMAGERY / WGS84"
-                          : theme === "dark"
-                            ? "CARTO DARK MATTER / WGS84"
+                      : mapKind === "shenzhen"
+                        ? "深圳湾艺术场景 / 非测绘坐标"
+                        : mapKind === "world"
+                          ? basemap === "satellite"
+                            ? "ESRI WORLD IMAGERY / WGS84"
                             : "CARTO POSITRON / WGS84"
-                        : "地形实验 / ENU · 3 × 3 km"}
+                          : "地形实验 / ENU · 3 × 3 km"}
                 </span>
               </div>
               <div className="map-toolbar-actions">
@@ -2115,11 +2514,7 @@ export default function App({
                       <Map size={13} />
                     )}
                     <span>
-                      {basemap === "satellite"
-                        ? "卫星实景"
-                        : theme === "dark"
-                          ? "夜间底图"
-                          : "日间底图"}
+                      {basemap === "satellite" ? "卫星实景" : "日间街道"}
                     </span>
                   </button>
                 )}
@@ -2160,25 +2555,51 @@ export default function App({
                 )}
                 {!liveMode && (
                   <button
-                    className="map-surface-toggle"
-                    aria-label={mapKind === "world" ? "地形实验" : "真实地图"}
+                    className={`map-surface-toggle ${mapKind === "shenzhen" ? "selected" : ""}`}
+                    aria-label={
+                      mapKind === "shenzhen" ? "退出深圳三维" : "深圳三维"
+                    }
+                    aria-pressed={mapKind === "shenzhen"}
+                    title="深圳湾艺术三维。不是实测空域，也不替代天气、障碍物或禁飞验收"
                     onClick={() => {
                       setTerminalMap(false);
-                      setMapKind((k) => (k === "world" ? "terrain" : "world"));
+                      setMapKind((k) =>
+                        k === "shenzhen" ? "world" : "shenzhen",
+                      );
+                      setLocationOpen(false);
+                      setReady(false);
+                      setMapError("");
+                    }}
+                  >
+                    <Orbit size={13} />
+                    <span>
+                      {mapKind === "shenzhen" ? "退出深圳三维" : "深圳三维"}
+                    </span>
+                  </button>
+                )}
+                {!liveMode && (
+                  <button
+                    className="map-surface-toggle"
+                    aria-label={mapKind === "terrain" ? "真实地图" : "地形实验"}
+                    onClick={() => {
+                      setTerminalMap(false);
+                      setMapKind((k) =>
+                        k === "terrain" ? "world" : "terrain",
+                      );
                       setLocationOpen(false);
                       setMapError("");
                     }}
                     title="在真实地图与原始地形实验视图间切换"
                   >
-                    {mapKind === "world" ? (
-                      <>
-                        <Mountain size={13} />
-                        <span>地形实验</span>
-                      </>
-                    ) : (
+                    {mapKind === "terrain" ? (
                       <>
                         <Globe2 size={13} />
                         <span>真实地图</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mountain size={13} />
+                        <span>地形实验</span>
                       </>
                     )}
                   </button>
@@ -2339,6 +2760,8 @@ export default function App({
                     p.x,
                     p.y,
                   ])}
+                  realPreviousRoute={realRouting.mapPreviousRoute}
+                  realConflictSegments={realRouting.mapConflictSegments}
                   realScene={realRouting.scene}
                   selected={selectedPlace}
                   weather={mapWeather}
@@ -2347,6 +2770,8 @@ export default function App({
                       ? nav.overlay
                       : null
                   }
+                  nationalFlysafe={nationalFlysafe}
+                  nationalFlysafeKey={nationalFlysafeKey}
                   onAirspaceSelect={(id) => {
                     nav.setSelectedRegion(id);
                     nav.setOpen(true);
@@ -2412,6 +2837,17 @@ export default function App({
                     mission={geoMission}
                     scheduledFor={realSchedule}
                     onSchedule={setRealSchedule}
+                    activeSnapshot={activeSnapshot}
+                    onAddCorridorZone={
+                      !readOnly
+                        ? () => void addCorridorSimulationZone()
+                        : undefined
+                    }
+                    corridorBusy={corridorBusy}
+                    onOpenAirspacePanel={() => {
+                      nav.setOpen(true);
+                      nav.setTab("airspace");
+                    }}
                   />
                 )}
               {!showLocalTrack && !showTerminal && mapKind === "world" && (
@@ -2665,9 +3101,7 @@ export default function App({
                     onClick={() => setBasemap("dark")}
                     aria-pressed={basemap === "dark"}
                   >
-                    <span>
-                      {theme === "dark" ? "夜间底图" : "日间底图"} · CARTO
-                    </span>
+                    <span>日间街道 · CARTO Positron</span>
                     <span
                       className={`checkbox ${basemap === "dark" ? "checked" : ""}`}
                     >
@@ -2770,6 +3204,15 @@ export default function App({
                   {coordinate[1].toFixed(5)}° N
                 </div>
               </div>
+              {nationalFlysafeNote ? (
+                <p
+                  className="map-bottom-note"
+                  role="status"
+                  data-testid="flysafe-national-note"
+                >
+                  {nationalFlysafeNote}
+                </p>
+              ) : null}
               <div className="map-bottom-note">
                 <span>
                   {!liveMode && demoVisible && layers.restrictions
@@ -3246,6 +3689,10 @@ export default function App({
                 : "T-S1-01",
             selected_task_id: planningContext ? null : dispatchTaskId || null,
             selected_intake_id: planningContext ? contextIntakeId : null,
+            airspace_snapshot_id:
+              activeSnapshot?.snapshot_id ??
+              realRouting.result?.constraint_snapshot?.snapshot_id ??
+              null,
             active_route:
               planningContext && activePlanningRoute
                 ? {
@@ -3257,6 +3704,14 @@ export default function App({
                       p.x,
                       p.y,
                     ]),
+                    constraint_snapshot_id:
+                      realRouting.result?.constraint_snapshot?.snapshot_id ??
+                      activeSnapshot?.snapshot_id ??
+                      null,
+                    constraint_digest:
+                      realRouting.result?.constraint_snapshot?.digest ??
+                      activeSnapshot?.digest ??
+                      null,
                   }
                 : null,
             route_id: liveMode

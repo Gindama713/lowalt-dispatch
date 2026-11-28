@@ -5,7 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
-import { CARTO_NIGHT_STYLE, CARTO_STYLE } from "../GeoMap";
+import { CARTO_STYLE } from "../GeoMap";
 import {
   formatCoordinates,
   parseCoordinates,
@@ -40,10 +40,9 @@ export function MapPicker({ field, initial, onClose, onPick }: Props) {
 
   useEffect(() => {
     if (!holder.current) return;
-    const dark = document.documentElement.dataset.theme === "dark";
     const instance = new maplibregl.Map({
       container: holder.current,
-      style: dark ? CARTO_NIGHT_STYLE : CARTO_STYLE,
+      style: CARTO_STYLE,
       center: initial ?? [121.4737, 31.2304],
       zoom: initial ? 14 : 11,
       attributionControl: false,

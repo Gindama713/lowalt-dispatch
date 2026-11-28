@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { lazy, Suspense, useId, useState } from "react";
 import {
   Activity,
   ArrowDown,
@@ -24,6 +24,8 @@ import {
 import type { User } from "./api";
 import { ThemeToggle } from "./Theme";
 import "./landing.css";
+
+const ShenzhenCityScene = lazy(() => import("../ShenzhenCityScene"));
 
 const capabilities = [
   {
@@ -407,6 +409,10 @@ export default function LandingPage({
                   创建第一个任务
                   <ArrowRight size={19} />
                 </button>
+                <a href="/console">
+                  <Orbit size={15} />
+                  进入深圳三维调度台
+                </a>
                 <a href="/demo">
                   <Play size={14} />
                   观看竞赛演示
@@ -431,9 +437,11 @@ export default function LandingPage({
               className="l-hero-visual"
               id="hero-model-slot"
               data-model-slot="hero"
-              aria-label="首页 3D 动画预留区域"
+              aria-label="深圳湾艺术三维。不是实测空域或实飞"
             >
-              <SpatialCanvas />
+              <Suspense fallback={<SpatialCanvas />}>
+                <ShenzhenCityScene variant="hero" />
+              </Suspense>
               <div className="l-visual-tag l-tag-top">
                 <span className="l-tag-icon">
                   <Route size={17} />
@@ -455,7 +463,7 @@ export default function LandingPage({
               </div>
               <div className="l-model-caption">
                 <span />
-                <span>3D 动画预留区域 · 当前为视觉示意</span>
+                <span>深圳湾艺术场景 · 非测绘坐标，不是实飞</span>
                 <MoveUpRight size={13} />
               </div>
             </div>

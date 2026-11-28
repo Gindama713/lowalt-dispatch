@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>AERIS CR30 3D Background</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 90% 60% at 50% 38%, #102638 0%, #091521 55%, #050c14 100%);
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #stage {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #status {
+      position: fixed;
+      left: 14px;
+      bottom: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "HarmonyOS Sans SC", "PingFang SC", sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: rgba(159, 232, 255, 0.55);
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.min.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="status">CR30 3D · LOADING</div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
+    import { DRACOLoader } from './vendor/loaders/DRACOLoader.js';
+    import { RoomEnvironment } from './vendor/environments/RoomEnvironment.js';
+
+    const stage = document.getElementById('stage');
+    const statusEl = document.getElementById('status');
+
+    let paused = false;
+    let explodeScale = 1.0;
+
+    window.__aerisDrone3d = {
+      setPaused(flag) {
+        paused = Boolean(flag);
+      },
+      setExplodeScale(scale) {
+        const n = Number(scale);
+        if (Number.isFinite(n)) explodeScale = Math.max(0, Math.min(1.4, n));
+      },
+    };
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance',
+      });
+    } catch (_err) {
+      statusEl.textContent = 'CR30 3D · WEBGL UNAVAILABLE';
+      throw _err;
+    }
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 120);
+
+    // Environment reflections
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const room = new RoomEnvironment();
+    const envRT = pmrem.fromScene(room, 0.04);
+    scene.environment = envRT.texture;
+    room.dispose();
+    pmrem.dispose();
+
+    // 3-point aerospace studio lighting
+    const hemi = new THREE.HemisphereLight(0xdff2ff, 0x26384d, 1.55);
+    scene.add(hemi);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.6);
+    keyLight.position.set(3.4, 6.8, 5.2);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x52c8ff, 3.2);
+    rimLight.position.set(-5.2, 3.2, -4.4);
+    scene.add(rimLight);
+
+    const warmFill = new THREE.DirectionalLight(0xffcc66, 1.1);
+    warmFill.position.set(2.5, -2.0, -3.5);
+    scene.add(warmFill);
+
+    // Drone pivot group
+    const dronePivot = new THREE.Group();
+    scene.add(dronePivot);
+
+    // Subtle holographic floor rings & grid
+    const floor = new THREE.Group();
+    floor.position.y = -1.45;
+    scene.add(floor);
+
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x6cd4ff,
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    for (const r of [1.75, 2.35, 2.95]) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.012, 96), ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      floor.add(ring);
+    }
+    const grid = new THREE.GridHelper(6.4, 24, 0x4ea8cc, 0x2a546e);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.14;
+    floor.add(grid);
+
+    // Scan plane
+    const scanPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.2, 5.2),
+      new THREE.MeshBasicMaterial({
+        color: 0x62f2d8,
+        transparent: true,
+        opacity: 0.055,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      })
+    );
+    scanPlane.rotation.x = -Math.PI / 2;
+    scene.add(scanPlane);
+
+    // Ambient tech dust particles
+    const particleCount = 64;
+    const posArr = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      const angle = i * 2.39996;
+      const radius = 1.6 + ((i * 19) % 24) / 10;
+      posArr[i * 3] = Math.cos(angle) * radius;
+      posArr[i * 3 + 1] = ((i * 13) % 30) / 10 - 1.4;
+      posArr[i * 3 + 2] = Math.sin(angle) * radius;
+    }
+    const particles = new THREE.Points(
+      new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(posArr, 3)),
+      new THREE.PointsMaterial({
+        color: 0x8be4ff,
+        size: 0.024,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      })
+    );
+    scene.add(particles);
+
+    // Explode & rotor records
+    const explodeParts = [];
+    const propNodes = [];
+    let modelLoaded = false;
+
+    function fitCamera() {
+      const w = Math.max(1, window.innerWidth);
+      const h = Math.max(1, window.innerHeight);
+      const aspect = w / h;
+      renderer.setSize(w, h, false);
+      camera.aspect = aspect;
+      // Portrait phone viewports need more distance so exploded CR30 stays completely inside frame
+      const dist = aspect < 0.72 ? 6.6 / Math.max(0.46, aspect) * 0.62 : (aspect < 1.0 ? 5.6 : 4.4);
+      camera.position.set(0, dist * 0.34, dist);
+      camera.lookAt(0, -0.05, 0);
+      camera.updateProjectionMatrix();
+    }
+    fitCamera();
+    window.addEventListener('resize', fitCamera);
+
+    // Load CR30 GLB (Draco compressed) from local vendor files
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('./vendor/draco/');
+    dracoLoader.setDecoderConfig({ type: 'wasm' });
+    dracoLoader.setWorkerLimit(2);
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    gltfLoader.load(
+      './cr30_lod1.glb',
+      (gltf) => {
+        const root = gltf.scene;
+        // Normalize scale & center so the model spans ~2.6 units nicely
+        root.updateWorldMatrix(true, true);
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+        const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+        const targetScale = 2.55 / maxDim;
+        root.scale.setScalar(targetScale);
+        root.position.sub(center.multiplyScalar(targetScale));
+
+        const seenMaterials = new Set();
+        root.traverse((node) => {
+          // Tune metallic rotor emissive just like web console heroAssembly.ts
+          if (node.isMesh && node.material) {
+            const mats = Array.isArray(node.material) ? node.material : [node.material];
+            for (const mat of mats) {
+              if (!seenMaterials.has(mat)) {
+                seenMaterials.add(mat);
+                if (mat.isMeshStandardMaterial && mat.metalness > 0.9 && mat.emissiveIntensity > 1) {
+                  mat.emissiveIntensity = 0.08;
+                }
+              }
+            }
+          }
+
+          if (/^PWR_PROP-(FL|FR|RL|RR)$/.test(node.name)) {
+            propNodes.push({
+              node,
+              dir: (node.name.endsWith('FL') || node.name.endsWith('RR')) ? 1 : -1,
+            });
+          }
+
+          const ud = node.userData || {};
+          if (ud.system && Array.isArray(ud.explodeDir) && typeof ud.explodeDist === 'number') {
+            explodeParts.push({
+              node,
+              origin: node.position.clone(),
+              offset: new THREE.Vector3().fromArray(ud.explodeDir).multiplyScalar(ud.explodeDist),
+              stagger: Number(ud.stagger) || 0,
+            });
+          }
+        });
+
+        dronePivot.add(root);
+        modelLoaded = true;
+        statusEl.textContent = `CR30 3D · ${explodeParts.length} PARTS · AUTO LOOP`;
+      },
+      undefined,
+      (err) => {
+        console.error('CR30 load error:', err);
+        statusEl.textContent = 'CR30 3D · LOAD ERROR';
+      }
+    );
+
+    function easeInOutCubic(x) {
+      const c = Math.max(0, Math.min(1, x));
+      return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2;
+    }
+
+    // 12-second smooth cycle: assembled -> staggered explode -> hold -> reassemble -> hold
+    function cycleExplodePhase(elapsedSec) {
+      const period = 12.0;
+      const t = elapsedSec % period;
+      if (t < 2.0) return 0;
+      if (t < 5.4) return easeInOutCubic((t - 2.0) / 3.4);
+      if (t < 7.8) return 1;
+      if (t < 10.8) return 1 - easeInOutCubic((t - 7.8) / 3.0);
+      return 0;
+    }
+
+    let elapsed = 0;
+    let lastTime = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
+      lastTime = now;
+      if (paused) return;
+
+      elapsed += dt;
+
+      // Continuous 360-degree turntable rotation + gentle hover breathing
+      dronePivot.rotation.y += dt * 0.28;
+      dronePivot.rotation.x = Math.sin(elapsed * 0.55) * 0.06 + 0.08;
+      dronePivot.rotation.z = Math.cos(elapsed * 0.42) * 0.04;
+      dronePivot.position.y = Math.sin(elapsed * 0.95) * 0.06;
+
+      // Subtle holographic scan sweep & particle drift
+      scanPlane.position.y = -1.15 + ((Math.sin(elapsed * 0.75) + 1) * 0.5) * 2.1;
+      floor.rotation.y -= dt * 0.08;
+      particles.rotation.y += dt * 0.04;
+
+      if (modelLoaded) {
+        const master = cycleExplodePhase(elapsed);
+        // Staggered part explosion/reassembly
+        for (let i = 0; i < explodeParts.length; i++) {
+          const p = explodeParts[i];
+          const delay = Math.min(0.45, p.stagger * 0.42);
+          const local = Math.max(0, Math.min(1, (master - delay) / Math.max(0.15, 1 - delay)));
+          const eased = easeInOutCubic(local) * explodeScale;
+          p.node.position.copy(p.origin).addScaledVector(p.offset, eased);
+        }
+
+        // Gentle propeller idle spin
+        for (let i = 0; i < propNodes.length; i++) {
+          propNodes[i].node.rotation.y += dt * 3.8 * propNodes[i].dir;
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

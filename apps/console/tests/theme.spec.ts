@@ -95,18 +95,14 @@ test("night mode preserves task input and map renderer; system appearance syncs 
   const canvas = page.locator(".geo-map canvas");
   await expect(canvas).toBeVisible();
   await expect
-    .poll(() => styles.some((url) => url.includes("dark-matter")))
-    .toBeTruthy();
-  await canvas.evaluate((el) => el.setAttribute("data-probe", "same-map"));
-  await page.getByRole("button", { name: "切换到日间模式" }).click();
-  await expect
     .poll(() => styles.some((url) => url.includes("positron")))
     .toBeTruthy();
+  expect(styles.some((url) => url.includes("dark-matter"))).toBeFalsy();
+  await canvas.evaluate((el) => el.setAttribute("data-probe", "same-map"));
+  await page.getByRole("button", { name: "切换到日间模式" }).click();
   await page.getByRole("button", { name: "切换到夜间模式" }).click();
-  await expect
-    .poll(() => styles.filter((url) => url.includes("dark-matter")).length)
-    .toBeGreaterThanOrEqual(2);
   await expect(canvas).toHaveAttribute("data-probe", "same-map");
+  expect(styles.some((url) => url.includes("dark-matter"))).toBeFalsy();
   await page.locator(".assistant-launcher").click();
   await expect(page.locator(".assistant-panel")).toBeVisible();
   await page.screenshot({

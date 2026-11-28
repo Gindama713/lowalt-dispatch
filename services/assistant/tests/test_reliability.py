@@ -109,6 +109,24 @@ def test_keyword_hits_do_not_require_vector_service(monkeypatch):
     vector.assert_not_called()
 
 
+def test_keyword_index_tracks_edits_and_new_documents(tmp_path, monkeypatch):
+    monkeypatch.setattr(knowledge, "ROOT", tmp_path)
+    monkeypatch.setattr(knowledge, "DOCUMENTS", ("guide.md",))
+    monkeypatch.setattr(knowledge, "KNOWLEDGE_DIR", tmp_path / "knowledge")
+    monkeypatch.setenv("AERIS_RAG", "keyword")
+    guide = tmp_path / "guide.md"
+    guide.write_text("# ACK\nACK accepted true old evidence", encoding="utf-8")
+    old = knowledge.search("ACK accepted true")[0]
+    guide.write_text("# ACK\n\nACK accepted true current evidence", encoding="utf-8")
+    current = knowledge.search("ACK accepted true")[0]
+    assert current["revision"] != old["revision"]
+    assert current["start_line"] == 3
+    assert "current evidence" in current["text"]
+    knowledge.KNOWLEDGE_DIR.mkdir()
+    (knowledge.KNOWLEDGE_DIR / "new.md").write_text("# 新文档\n备用场点核实台账", encoding="utf-8")
+    assert knowledge.search("备用场点核实台账")[0]["path"] == "knowledge/new.md"
+
+
 def test_long_code_chunks_keep_exact_source_lines():
     text = "# 示例\n```python\n" + "value = 12345\n" * 200 + "```\n"
     chunks = list(knowledge._split("example.md", text.encode()))
@@ -116,6 +134,20 @@ def test_long_code_chunks_keep_exact_source_lines():
     for chunk in chunks:
         assert len(chunk.text) <= knowledge.EXCERPT_LIMIT
         assert chunk.text == "\n".join(text.splitlines()[chunk.start_line - 1 : chunk.end_line])
+
+
+def test_vector_handle_refreshes_when_corpus_changes(monkeypatch):
+    monkeypatch.setattr(rag, "_collection", None)
+    monkeypatch.setattr(rag, "_collection_fingerprint", None)
+    fingerprint = ["original"]
+    monkeypatch.setattr(rag, "_fingerprint", lambda: fingerprint[0])
+    build = Mock(side_effect=[object(), object()])
+    monkeypatch.setattr(rag, "_build", build)
+    first = rag._ensure()
+    assert rag._ensure() is first
+    fingerprint[0] = "edited"
+    assert rag._ensure() is not first
+    assert build.call_count == 2
 
 
 def confirmed_turn():

@@ -181,6 +181,7 @@ def test_invalid_region_coordinates_are_validation_errors(coordinates):
             id="x", kind="restricted", source="test", geometry={"type": "Polygon", "coordinates": coordinates}
         )
 
+
 def test_exact_campus_name_wins_over_other_campuses():
     from services.assistant import place_match
 
@@ -226,3 +227,26 @@ def test_short_alias_is_never_turned_into_a_far_away_point():
     assert result["status"] == "unresolved"
     assert result["candidates"] == []
     assert "太短" in result["note"]
+
+
+def test_named_university_never_offers_another_school_and_campus_is_not_inferred(monkeypatch):
+    wrong = {"name": "南昌大学医学部（前湖校区）", "point": [115.78, 28.65], "kind": "amenity/university"}
+    parent = {"name": "南昌航空大学", "point": [115.82, 28.65], "kind": "amenity/university"}
+    monkeypatch.setattr(geocode, "lookup", lambda *a: ([wrong], "Photon test"))
+    requested = []
+
+    def fallback(name):
+        requested.append(name)
+        return [parent]
+
+    monkeypatch.setattr(geocode, "overpass_universities", fallback)
+    result = evidence.resolve_place("南昌航空大学（前湖校区）")
+    assert requested == ["南昌航空大学"]
+    assert result["status"] == "unresolved"
+    assert result["point"] is None
+    assert [c["name"] for c in result["candidates"]] == ["南昌航空大学"]
+    assert "未核实所指校区" in result["address"]
+    monkeypatch.setattr(geocode, "lookup", lambda *a: ([], ""))
+    result = evidence.resolve_place("南昌航空大学")
+    assert result["status"] == "ok"
+    assert result["source"] == "OpenStreetMap / Overpass"

@@ -121,6 +121,10 @@ def main_campus(query: str, rows: list[dict]) -> dict | None:
 
 
 def resolve(query: str, rows: list[dict]) -> dict:
+    q = normalize(query)
+    university = re.match(r"(.+?大学)", q)
+    if university:
+        rows = [item for item in rows if university[1] in normalize(item.get("name", ""))]
     ranked = sorted(
         (
             (score(query, item.get("name", ""), item.get("kind", "")), item)
@@ -129,7 +133,7 @@ def resolve(query: str, rows: list[dict]) -> dict:
         ),
         key=lambda pair: (-pair[0], len(pair[1].get("name", ""))),
     )
-    if not ranked:
+    if not ranked or ranked[0][0] == 0:
         return {
             "status": "unresolved",
             "candidates": [],
@@ -148,10 +152,7 @@ def resolve(query: str, rows: list[dict]) -> dict:
         if value >= STRONG_SCORE
         and value >= best_score - 8
         and CLUSTER_M < distance_m(best["point"], item["point"]) <= VARIANT_M
-        and not (
-            "amenity/school" in (item.get("kind") or "")
-            and "校区" not in item.get("name", "")
-        )
+        and not ("amenity/school" in (item.get("kind") or "") and "校区" not in item.get("name", ""))
     ]
     q = normalize(query)
     exact = normalize(best.get("name", "")) == q
@@ -235,6 +236,16 @@ def resolve(query: str, rows: list[dict]) -> dict:
                 "不要把学校中心当成门口，请在地图上点选。"
             ),
         }
+    if (
+        "校区" in q
+        and not exact
+        and not any(part in normalize(best.get("name", "")) for part in re.findall(r"[^()大学]+校区", q))
+    ):
+        return {
+            "status": "unresolved",
+            "candidates": [_row(best, "parent", "low")],
+            "note": f"只找到「{best['name']}」本体，未核实所指校区；请搜索校区地址或在地图选点。",
+        }
     if ambiguous:
         pool = variants or [item for value, item in ranked[:4] if value > 0]
         options = [_row(item, "variant", "medium") for item in pool[:4]]
@@ -248,7 +259,10 @@ def resolve(query: str, rows: list[dict]) -> dict:
         "best": best,
         "score": best_score,
         "confidence": "high" if exact else ("medium" if best_score >= STRONG_SCORE else "low"),
-        "candidates": [_row(item, "best" if item is best else "alternative", "high" if item is best else "low") for _, item in near[:1]],
+        "candidates": [
+            _row(item, "best" if item is best else "alternative", "high" if item is best else "low")
+            for _, item in near[:1]
+        ],
         "alternatives": [
             _row(item, "alternative", "low")
             for value, item in ranked[1:4]

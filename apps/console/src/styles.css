@@ -173,12 +173,18 @@ kbd {
   gap: 29px;
   align-items: stretch;
 }
-.top-nav button {
+.top-nav button,
+.top-nav a {
+  display: inline-flex;
+  align-items: center;
   color: light-dark(#5a6372, #b8bfcc);
   font-size: 12px;
   position: relative;
   padding: 2px 0 0;
   white-space: nowrap;
+}
+.top-nav a:hover {
+  color: light-dark(#376e95, #a7c6dd);
 }
 .top-nav button.active {
   color: light-dark(#376e95, #a7c6dd);
@@ -1091,6 +1097,7 @@ kbd {
   font-size: 7px;
   color: light-dark(#506171, #b5c2ce);
   letter-spacing: 0.3px;
+  pointer-events: none;
 }
 .playback {
   height: 40px;

@@ -12,8 +12,11 @@ test("future delivery asks full clarification and never treats ENU as WGS84", as
 
   const card = page.getByTestId("intake-clarification");
   await expect(card).toBeVisible();
-  await expect(card).toContainText("可以，完全可以做到");
-  await expect(card).toContainText("请确认具体日期与起飞时刻");
+  await expect(card).toContainText("地点还没完全解析");
+  await expect(card).toContainText("时间：");
+  await expect(
+    card.getByRole("button", { name: "A · 就用这个时间" }),
+  ).toBeVisible();
   await expect(card).toContainText("载荷重量");
   await expect(card).toContainText("优先级");
 

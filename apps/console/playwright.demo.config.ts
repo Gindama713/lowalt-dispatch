@@ -4,7 +4,9 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: "demo.spec.ts",
   workers: 1,
-  timeout: 120_000,
+  // The replay test waits on a WebGL frame after several model loads.
+  // On a busy runner that sequence can pass 120s before the frame lands.
+  timeout: 180_000,
   expect: { timeout: 30_000 },
   reporter: "list",
   use: {

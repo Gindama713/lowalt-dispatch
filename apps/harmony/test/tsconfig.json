@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "types": [],
+    "lib": ["ES2022"]
+  },
+  "files": [
+    "esobject.d.ts",
+    "mock_parse.test.ts"
+  ]
+}

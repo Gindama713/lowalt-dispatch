@@ -73,9 +73,7 @@ def _photon(query: str, limit: int) -> list[dict]:
             ).strip()
             or name
         )
-        kind = "/".join(
-            part for part in (properties.get("osm_key"), properties.get("osm_value")) if part
-        )
+        kind = "/".join(part for part in (properties.get("osm_key"), properties.get("osm_value")) if part)
         rows.append(_row(name, address, lng, lat, kind))
     return rows
 
@@ -91,7 +89,7 @@ def overpass_universities(name: str, limit: int = 8) -> list[dict]:
         south, west, north, east = 28.40, 115.60, 29.00, 116.20
     safe = re.sub(r'["\\]', "", name)[:60]
     query = (
-        '[out:json][timeout:25];'
+        "[out:json][timeout:25];"
         f'nwr["amenity"~"^(university|college)$"]["name"~"{safe}"]'
         f"({south},{west},{north},{east});out center tags {limit};"
     )
@@ -99,8 +97,9 @@ def overpass_universities(name: str, limit: int = 8) -> list[dict]:
 
     for endpoint in ENDPOINTS:
         try:
-            with httpx.Client(timeout=httpx.Timeout(18, connect=5), trust_env=False,
-                              headers={"User-Agent": USER_AGENT}) as client:
+            with httpx.Client(
+                timeout=httpx.Timeout(18, connect=5), trust_env=False, headers={"User-Agent": USER_AGENT}
+            ) as client:
                 response = client.post(endpoint, data={"data": query})
                 response.raise_for_status()
                 payload = response.json()

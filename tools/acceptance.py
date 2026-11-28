@@ -23,14 +23,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--level", choices=("fast", "default", "all"), default="default")
     parser.add_argument("--scope", choices=("all", "env"), default="all")
     args = parser.parse_args(argv)
-    code = _run([sys.executable, "-m", "compileall", "-q", "services/assistant", "tools"])
+    code = _run([sys.executable, "-m", "compileall", "-q", "services/assistant", "planner", "tools"])
     if code:
         return 1
-    target = (
-        ["services/assistant/tests/test_route_environment.py"]
-        if args.scope == "env"
-        else ["services/assistant/tests"]
-    )
+    # 同一条验收：地理天气/障碍物（助手，非 live）和 ENU 时变禁飞（规划复算）分开判定，一起跑。
+    if args.scope == "env":
+        target = ["services/assistant/tests/test_route_environment.py"]
+    else:
+        target = [
+            "services/assistant/tests",
+            "tests/test_diversion.py",
+        ]
     marker = "fast and not live" if args.level == "fast" else "not live and not soak"
     code = _run([sys.executable, "-m", "pytest", *target, "-m", marker, "-q", "--tb=line", "-o", "addopts="])
     if code:

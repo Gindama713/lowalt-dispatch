@@ -10,23 +10,37 @@ import threading
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from services.api.routes import router as dispatch_router
 from services.api.routes import runtime as dispatch_runtime
+from services.assistant.airspace_snapshot import (
+    ConstraintSnapshot,
+    build_corridor_simulation_zone,
+    check_route_against_snapshot,
+    snapshot_from_geojson,
+)
+from services.assistant.airspace_snapshot import (
+    store as airspace_store,
+)
 from services.assistant.dispatch_bridge import DispatchDraftInput, build_task_draft
 from services.assistant.engine import Engine, ModelUnavailable, Settings
-from services.assistant.intake import TaskIntake
 from services.assistant.intake import store as intake_store
 from services.assistant.models import Turn
 from services.assistant.navigation import CandidateInput, candidate_routes
 from services.assistant.places import search_places
 from services.assistant.telemetry import read_latest, stream_telemetry
-from services.assistant.tools import CAPABILITIES, real_route_for_intake
+from services.assistant.tools import (
+    CAPABILITIES,
+    _invoke_route_provider,
+    apply_route_update_to_intake,
+    real_route_for_intake,
+)
 from services.assistant.vehicles import CustomVehicle, VehicleTestInput
 from services.identity.routes import COOKIE
 from services.identity.routes import router as identity_router
@@ -107,12 +121,326 @@ def evaluate_vehicle_test(body: VehicleTestInput):
     )
 
 
+class AirspaceSnapshotUpsert(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    mode: Literal["replace", "known_empty", "clear"] = "replace"
+    geojson: dict | None = None
+    zone_buffer_m: float = Field(default=0.0, ge=0.0, le=500.0)
+    scheduled_for: str | None = None
+    set_active: bool = True
+
+
+class CorridorSimulationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    origin: list[float] = Field(min_length=2, max_length=2)
+    destination: list[float] = Field(min_length=2, max_length=2)
+    waypoints: list[list[float]] | None = Field(default=None, max_length=1000)
+    append: bool = False
+    zone_buffer_m: float = Field(default=0.0, ge=0.0, le=500.0)
+    scheduled_for: str | None = None
+
+
+class FlySafeQueryInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    origin: list[float] = Field(min_length=2, max_length=2)
+    destination: list[float] = Field(min_length=2, max_length=2)
+    zone_buffer_m: float = Field(default=0.0, ge=0.0, le=500.0)
+    scheduled_for: str | None = None
+    drone: str | None = Field(default=None, max_length=64)
+    preserve_snapshot_id: str | None = Field(default=None, max_length=64)
+
+
+class RouteAirspaceCheckInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    waypoints: list[list[float]] = Field(min_length=2, max_length=1000)
+    snapshot_id: str | None = Field(default=None, max_length=64)
+    scheduled_for: str | None = None
+
+
+class IntakeRouteRefreshInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    snapshot_id: str | None = Field(default=None, max_length=64)
+    zone_buffer_m: float | None = Field(default=None, ge=0.0, le=500.0)
+
+
+@app.get("/api/assistant/airspace/snapshot")
+def get_active_airspace_snapshot():
+    active = airspace_store.get_active()
+    return {
+        "status": active.source_status if active else "not_loaded",
+        "snapshot": active.model_dump(mode="json") if active else None,
+        "dispatch_enabled": False,
+    }
+
+
+@app.get("/api/assistant/airspace/snapshots/{snapshot_id}")
+def get_airspace_snapshot_by_id(snapshot_id: str):
+    try:
+        return airspace_store.get(snapshot_id).model_dump(mode="json")
+    except KeyError:
+        raise HTTPException(404, "找不到指定的空域约束快照") from None
+
+
+@app.post("/api/assistant/airspace/snapshot")
+def upsert_airspace_snapshot(body: AirspaceSnapshotUpsert):
+    try:
+        if body.mode == "clear":
+            snap = airspace_store.clear_active(zone_buffer_m=body.zone_buffer_m)
+        elif body.mode == "known_empty":
+            snap = ConstraintSnapshot.build(
+                zones=[],
+                source_status="known_empty",
+                zone_buffer_m=body.zone_buffer_m,
+                scheduled_for=body.scheduled_for,
+            )
+            snap = airspace_store.save(snap, set_active=body.set_active)
+        else:
+            if body.geojson is None:
+                raise ValueError("上传空域约束时必须提供 geojson")
+            snap = snapshot_from_geojson(
+                body.geojson,
+                zone_buffer_m=body.zone_buffer_m,
+                scheduled_for=body.scheduled_for,
+            )
+            snap = airspace_store.save(snap, set_active=body.set_active)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    write_audit(
+        {
+            "type": "airspace_snapshot_upsert",
+            "mode": body.mode,
+            "snapshot_id": snap.snapshot_id,
+            "digest": snap.digest,
+            "enforced_zone_count": snap.enforced_zone_count,
+            "dispatch_enabled": False,
+        }
+    )
+    return snap.model_dump(mode="json")
+
+
+@app.post("/api/assistant/airspace/simulate-corridor")
+def simulate_corridor_airspace(body: CorridorSimulationInput):
+    try:
+        existing = airspace_store.get_active() if body.append else None
+        prior_zones = list(existing.zones) if existing else []
+        zone = build_corridor_simulation_zone(
+            body.origin,
+            body.destination,
+            body.waypoints,
+            existing_zones=prior_zones,
+        )
+        snap = ConstraintSnapshot.build(
+            zones=[*prior_zones, zone],
+            source_status="simulation_preset",
+            zone_buffer_m=body.zone_buffer_m,
+            scheduled_for=body.scheduled_for,
+        )
+        snap = airspace_store.save(snap, set_active=True)
+        route_check = (
+            check_route_against_snapshot(
+                body.waypoints,
+                snap,
+                scheduled_for=body.scheduled_for,
+            )
+            if body.waypoints and len(body.waypoints) >= 2
+            else None
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    write_audit(
+        {
+            "type": "airspace_simulate_corridor",
+            "snapshot_id": snap.snapshot_id,
+            "digest": snap.digest,
+            "zone_id": zone.id,
+            "dispatch_enabled": False,
+        }
+    )
+    return {
+        "snapshot": snap.model_dump(mode="json"),
+        "added_zone_id": zone.id,
+        "route_check": route_check,
+        "dispatch_enabled": False,
+    }
+
+
+@app.post("/api/assistant/airspace/flysafe")
+def query_flysafe_zones(body: FlySafeQueryInput):
+    """Query DJI FlySafe for the planning bbox and store a manufacturer-reference snapshot.
+
+    Disabled processes (``AERIS_FLYSAFE_LIVE=0``) do not contact the network and
+    do not replace the active snapshot. Failures and empty results are
+    ``unavailable`` with no invented geometry.
+    """
+    from services.assistant.flysafe import (
+        FLYSAFE_SOURCE,
+        flysafe_live_enabled,
+        refresh_planning_snapshot,
+    )
+
+    if not flysafe_live_enabled():
+        return {
+            "status": "disabled",
+            "snapshot": None,
+            "reason": "本进程未开启大疆 FlySafe 实时查询（AERIS_FLYSAFE_LIVE=0），未编造围栏",
+            "reference_label": FLYSAFE_SOURCE,
+            "dispatch_enabled": False,
+            "operationally_approved": False,
+        }
+    prior = None
+    if body.preserve_snapshot_id:
+        try:
+            prior = airspace_store.get(body.preserve_snapshot_id)
+        except KeyError:
+            prior = airspace_store.get_active()
+    else:
+        prior = airspace_store.get_active()
+    try:
+        snap = refresh_planning_snapshot(
+            body.origin,
+            body.destination,
+            zone_buffer_m=body.zone_buffer_m,
+            scheduled_for=body.scheduled_for,
+            prior=prior,
+            drone=body.drone,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if snap is None:
+        raise HTTPException(503, "大疆 FlySafe 查询没有执行，未编造围栏")
+    snap = airspace_store.save(snap, set_active=True)
+    write_audit(
+        {
+            "type": "airspace_flysafe_query",
+            "snapshot_id": snap.snapshot_id,
+            "digest": snap.digest,
+            "source_status": snap.source_status,
+            "total_zone_count": snap.total_zone_count,
+            "enforced_zone_count": snap.enforced_zone_count,
+            "failure_reason": snap.failure_reason,
+            "reference_label": FLYSAFE_SOURCE,
+            "dispatch_enabled": False,
+        }
+    )
+    return {
+        "status": snap.source_status,
+        "snapshot": snap.model_dump(mode="json"),
+        "reference_label": FLYSAFE_SOURCE,
+        "reason": snap.failure_reason,
+        "dispatch_enabled": False,
+        "operationally_approved": False,
+    }
+
+
+class FlySafeNationalInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    force: bool = False
+    drone: str | None = Field(default=None, max_length=64)
+
+
+@app.get("/api/assistant/airspace/flysafe/national")
+def read_flysafe_national_overlay():
+    """Return the cached China-wide display overlay. Does not query DJI or planning."""
+
+    from services.assistant.flysafe_national import read_national_overlay
+
+    return read_national_overlay()
+
+
+@app.post("/api/assistant/airspace/flysafe/national")
+def refresh_flysafe_national_overlay(body: FlySafeNationalInput):
+    """Refresh the China-wide display overlay. Never writes the planning snapshot."""
+
+    from services.assistant.flysafe_national import refresh_national_overlay
+
+    result = refresh_national_overlay(force=body.force, drone=body.drone)
+    write_audit(
+        {
+            "type": "airspace_flysafe_national",
+            "status": result["status"],
+            "zone_count": result["zone_count"],
+            "incomplete": result["incomplete"],
+            "retained_prior": result["retained_prior"],
+            "reference_label": result["reference_label"],
+            "dispatch_enabled": False,
+        }
+    )
+    return result
+
+
+@app.post("/api/assistant/airspace/check")
+def check_airspace_route(body: RouteAirspaceCheckInput):
+    try:
+        snap = (
+            airspace_store.get(body.snapshot_id)
+            if body.snapshot_id
+            else airspace_store.get_active_or_unloaded(scheduled_for=body.scheduled_for)
+        )
+        return check_route_against_snapshot(
+            body.waypoints,
+            snap,
+            scheduled_for=body.scheduled_for,
+        )
+    except KeyError:
+        raise HTTPException(404, "指定的空域约束快照不存在") from None
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 @app.post("/api/assistant/navigation/candidates")
 def navigation_candidates(body: CandidateInput):
     if not navigation_slot.acquire(blocking=False):
         raise HTTPException(429, "航线计算忙碌，请稍后重试")
     try:
         result = candidate_routes(body)
+        if body.frame == "WGS84" and body.intake_id and isinstance(result.get("constraint_snapshot"), dict):
+            try:
+                existing_intake = intake_store.get(body.intake_id)
+            except KeyError:
+                existing_intake = None
+            if existing_intake is not None:
+                route_obj = result.get("route") or {}
+                route_record = {
+                    "status": result["status"],
+                    "frame": "WGS84",
+                    "route_id": route_obj.get("id"),
+                    "route": route_obj,
+                    "scene_id": result.get("scene_id"),
+                    "planning_result": result,
+                    "waypoints": route_obj.get("waypoints") or [],
+                    "length_m": route_obj.get("length_m"),
+                    "resolution_requested_m": result.get("resolution_requested_m"),
+                    "resolution_used_m": result.get("resolution_used_m"),
+                    "clearance_m": result.get("clearance_m"),
+                    "zone_buffer_m": result.get("zone_buffer_m"),
+                    "continuous_clearance_verified": result.get("continuous_clearance_verified", False),
+                    "continuous_zone_verified": result.get("continuous_zone_verified", False),
+                    "geometric_generation": result.get("geometric_generation"),
+                    "constraint_snapshot": result.get("constraint_snapshot"),
+                    "airspace_check": result.get("airspace_check"),
+                    "previous_route_check": result.get("previous_route_check"),
+                    "route_changed": result.get("route_changed"),
+                    "obstacle_source": result.get("obstacle_source"),
+                    "reason": (result.get("alternatives") or [{}])[0].get("reason"),
+                    "attempts": result.get("plan_attempts", []),
+                    "warnings": result.get("warnings", [])[:5],
+                    "computed_at": datetime.now(UTC).isoformat(),
+                    "note": "几何避障参考；未接真实空域、地形、线缆，不代表获准飞行。",
+                }
+                updated_intake = apply_route_update_to_intake(
+                    existing_intake,
+                    route_record,
+                    ConstraintSnapshot.model_validate(result["constraint_snapshot"]),
+                    store_override=intake_store,
+                )
+                result["synced_intake_id"] = updated_intake["intake_id"]
+                result["route_version"] = updated_intake["real_route"].get("version_label")
+                if updated_intake.get("route_history"):
+                    result["previous_route_check"] = updated_intake["route_history"][-1].get(
+                        "rechecked_airspace_check"
+                    )
         write_audit({"type": "navigation_candidates", "input": body.model_dump(), "dispatch_enabled": False})
         return result
     except Exception as exc:
@@ -288,13 +616,11 @@ def dispatch_draft(intake_id: str, body: DispatchDraftInput):
 
 
 @app.post("/api/assistant/intakes/{intake_id}/route")
-def refresh_intake_route(intake_id: str):
-    """Compute and cache a real-geometry route for an existing intake.
-
-    Older intakes predate intake-side routing. This is explicit and idempotent:
-    the same origin/destination/schedule writes the same record with the newly
-    computed route, and nothing is invented when the network is unavailable.
-    """
+def refresh_intake_route(
+    intake_id: str,
+    body: Annotated[IntakeRouteRefreshInput | None, Body()] = None,
+):
+    """Compute or recalculate a real-geometry route for an existing intake bound to a ConstraintSnapshot."""
     try:
         intake = intake_store.get(intake_id)
     except KeyError:
@@ -303,18 +629,58 @@ def refresh_intake_route(intake_id: str):
     destination = (intake.get("destination") or {}).get("point")
     if not origin or not destination:
         raise HTTPException(422, "工单起终点没有 WGS84 坐标，无法计算真实航线")
-    route = real_route_for_intake(list(origin), list(destination), intake.get("scheduled_for"))
-    intake["real_route"] = route
-    warnings = [item for item in intake.get("warnings", []) if "真实航线未生成" not in item]
-    if route.get("status") == "ok":
-        warnings.append(
-            "航线为公开地图建筑足迹 + 20 m 物理净空的几何避障结果；未接真实空域、地形、线缆，不代表获准飞行。"
+    try:
+        target_snapshot = airspace_store.resolve(
+            snapshot_id=body.snapshot_id if body else None,
+            zone_buffer_m=body.zone_buffer_m if (body and body.zone_buffer_m is not None) else 0.0,
+            scheduled_for=intake.get("scheduled_for"),
         )
-    else:
-        warnings.append("真实航线未生成：" + str(route.get("reason") or "未知原因") + "；未用直线代替。")
-    intake["warnings"] = warnings
-    intake_store.create(TaskIntake.model_validate(intake))
-    return intake
+        from services.assistant.flysafe import refresh_planning_snapshot
+
+        refreshed = refresh_planning_snapshot(
+            list(origin),
+            list(destination),
+            zone_buffer_m=target_snapshot.zone_buffer_m,
+            scheduled_for=intake.get("scheduled_for"),
+            prior=target_snapshot,
+        )
+        if refreshed is not None:
+            target_snapshot = airspace_store.save(refreshed, set_active=True)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    old_wps = (intake.get("real_route") or {}).get("waypoints") or []
+    prev_lonlats = [
+        [float(pt.get("lng", pt.get("x"))), float(pt.get("lat", pt.get("y")))]
+        for pt in old_wps
+        if isinstance(pt, dict) and pt.get("lng", pt.get("x")) is not None
+    ]
+    route = _invoke_route_provider(
+        real_route_for_intake,
+        list(origin),
+        list(destination),
+        intake.get("scheduled_for"),
+        snapshot=target_snapshot,
+        intake_id=intake_id,
+        previous_waypoints=prev_lonlats if len(prev_lonlats) >= 2 else None,
+    )
+    updated = apply_route_update_to_intake(
+        intake,
+        route,
+        target_snapshot,
+        store_override=intake_store,
+    )
+    write_audit(
+        {
+            "type": "intake_route_refresh",
+            "intake_id": intake_id,
+            "snapshot_id": target_snapshot.snapshot_id,
+            "digest": target_snapshot.digest,
+            "status": route.get("status"),
+            "dispatch_enabled": False,
+        }
+    )
+    return updated
 
 
 @app.get("/api/telemetry/stream")

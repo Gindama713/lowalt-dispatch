@@ -3,7 +3,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
-import { CARTO_NIGHT_STYLE, CARTO_STYLE } from "../GeoMap";
+import { CARTO_STYLE } from "../GeoMap";
 import type { LngLat } from "../geo";
 import "./clarification.css";
 
@@ -22,10 +22,9 @@ export function PinPreview({ point, label, onOpen }: Props) {
 
   useEffect(() => {
     if (!holder.current) return;
-    const dark = document.documentElement.dataset.theme === "dark";
     const instance = new maplibregl.Map({
       container: holder.current,
-      style: dark ? CARTO_NIGHT_STYLE : CARTO_STYLE,
+      style: CARTO_STYLE,
       center: [lng, lat],
       zoom: 14,
       interactive: false,

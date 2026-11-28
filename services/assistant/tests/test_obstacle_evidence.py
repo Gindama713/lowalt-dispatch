@@ -172,7 +172,7 @@ def test_example_ledger_never_becomes_operational():
     assert tool["operationally_approved"] is False
 
 
-def test_six_environment_tools_remain_registered():
+def test_environment_tools_remain_registered():
     assert ENV_TOOL_NAMES == {
         "assess_route_environment",
         "explain_verdict",
@@ -180,4 +180,5 @@ def test_six_environment_tools_remain_registered():
         "compare_departure_times",
         "check_landing_sites",
         "audit_route_provenance",
+        "inspect_mission_plan",
     }

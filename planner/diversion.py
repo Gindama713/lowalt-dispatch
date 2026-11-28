@@ -20,8 +20,9 @@
    对角线抄角带来的保守量，避免网格上刚过线、折线采样又变成负数。
 5. 目的地不是备降点。飞行中才关闭的备降点（`landing_site_changes` 里 `at_s > 0`
    的 `closed`）已进入本版：搜索按到达时刻的有效备降点集合换距离场，余量剖面
-   按同样的时刻复算。at_s > 0 的限制区仍当还没发生——那是动态重规划的事，
-   `astar_dynamic` 仍是 mock。
+   按同样的时刻复算。`at_s > 0` 的限制区由 `nfz_active_at` 在搜索期按到达时刻
+   剪枝，并由 `hard_constraint_report` 对已生成航线再复算一遍。风场和链路退化
+   仍未接入，`astar_dynamic` 仍是 mock。
 
 `E_left - E_reserve - E_need >= 0` 才算这个状态还能搜。
 E_need 是上面这张距离场乘单位距离能耗；没有几何可达备降点时，
@@ -805,10 +806,14 @@ def hard_constraint_report(
     plan_out: ScenarioPlan,
     scenario: dict,
     vehicle: VehicleProfile,
+    *,
+    scene: Scene | None = None,
 ) -> HardReport:
     """对一条已经生成的航线再算一遍硬约束。不读取规划器自报的 checks。
 
     这和搜索用的是同一套距离场（同一把尺子），还不是另一个人写的独立校验器。
+    `at_s > 0` 的限制区按到达时刻复算，和搜索期 `nfz_active_at` 同一窗口口径。
+    未传入 scene 时用仓库共享场景；调用方有场景就传进来，避免和搜索用了两套区。
     """
     if not plan_out.found:
         hard = 0 if plan_out.rejection_kind == "geometry" else 1
@@ -827,11 +832,26 @@ def hard_constraint_report(
     if payload is not None and float(payload) > vehicle.max_payload_kg:
         categories += 1
         reasons.append(f"载荷 {float(payload):.2f} kg 超出机型最大载荷 {vehicle.max_payload_kg:.2f} kg")
-    flight_time = _flight_time_s(vehicle, plan_out.length_m, climb_delta_m(scenario))
+    climb_delta = climb_delta_m(scenario)
+    flight_time = _flight_time_s(vehicle, plan_out.length_m, climb_delta)
     limit = scenario.get("time_limit_s")
     if limit is not None and flight_time > float(limit):
         categories += 1
         reasons.append(f"预计飞行 {flight_time:.0f} s，超过时限 {float(limit):.0f} s")
+
+    # 复算飞行中才生效（at_s > 0）的时变限制区，与搜索期 nfz_active_at 和独立校验器同口径。
+    # 天气与地理障碍不在这条 ENU 复算里；它们走助手 assess_route_environment。
+    if plan_out.waypoints and scenario.get("events"):
+        active_scene = shared_scene() if scene is None else scene
+        nfz_windows = nfz_schedule(scenario, active_scene)
+        if nfz_windows:
+            climb_time = (climb_delta / vehicle.climb_rate_mps) if climb_delta > 0 else 0.0
+            for s_m, (x, y) in sample_polyline(plan_out.waypoints, 10.0):
+                t_s = climb_time + cruise_time_s(vehicle, s_m)
+                if nfz_active_at(nfz_windows, x, y, t_s):
+                    categories += 1
+                    reasons.append(f"侵入飞行中已激活限制区（t=+{t_s:.0f} s 位于 ({x:.0f}, {y:.0f})）")
+                    break
 
     negative = 0
     if plan_out.profile is None or not plan_out.profile.is_feasible:

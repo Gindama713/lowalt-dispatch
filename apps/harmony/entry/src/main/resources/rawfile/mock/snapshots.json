@@ -1,0 +1,193 @@
+{
+  "example": true,
+  "example_note": "示例。种子快照。第一条来自 bind_scene(v0, R01, L2)，第二条是已过期快照。",
+  "payload": [
+    {
+      "task_id": "T-20261109-001",
+      "snapshot": {
+        "snapshot_id": "T-20261109-001-snap-1",
+        "captured_at": "2026-11-09T00:00:00Z",
+        "valid_until": null,
+        "landing_sites": [
+          {
+            "site_id": "L1",
+            "position": {
+              "frame": "enu_m",
+              "alt_m": 0.0,
+              "alt_ref": "agl",
+              "x_m": 700.0,
+              "y_m": 700.0,
+              "lat_deg": null,
+              "lon_deg": null
+            },
+            "radius_m": 30.0,
+            "compatible_vehicle_types": [
+              "placeholder"
+            ],
+            "available_from": null,
+            "available_until": null,
+            "occupied": false,
+            "provenance": {
+              "source": "自建虚拟城区 v0",
+              "version": "v0-draft",
+              "captured_at": "2026-11-09T00:00:00Z",
+              "valid_from": null,
+              "valid_until": null,
+              "is_simulated": true,
+              "uncertainty_note": "草稿几何，不是实测场地。二维点没有测量高度。alt_m=0 且 alt_ref=agl 表示按地面理解，不是缺失值占位。"
+            }
+          },
+          {
+            "site_id": "L2",
+            "position": {
+              "frame": "enu_m",
+              "alt_m": 0.0,
+              "alt_ref": "agl",
+              "x_m": 1900.0,
+              "y_m": 1900.0,
+              "lat_deg": null,
+              "lon_deg": null
+            },
+            "radius_m": 30.0,
+            "compatible_vehicle_types": [
+              "placeholder"
+            ],
+            "available_from": null,
+            "available_until": null,
+            "occupied": true,
+            "provenance": {
+              "source": "自建虚拟城区 v0",
+              "version": "v0-draft",
+              "captured_at": "2026-11-09T00:00:00Z",
+              "valid_from": null,
+              "valid_until": null,
+              "is_simulated": true,
+              "uncertainty_note": "草稿几何，不是实测场地。二维点没有测量高度。alt_m=0 且 alt_ref=agl 表示按地面理解，不是缺失值占位。"
+            }
+          },
+          {
+            "site_id": "L3",
+            "position": {
+              "frame": "enu_m",
+              "alt_m": 0.0,
+              "alt_ref": "agl",
+              "x_m": 2700.0,
+              "y_m": 700.0,
+              "lat_deg": null,
+              "lon_deg": null
+            },
+            "radius_m": 30.0,
+            "compatible_vehicle_types": [
+              "placeholder"
+            ],
+            "available_from": null,
+            "available_until": null,
+            "occupied": false,
+            "provenance": {
+              "source": "自建虚拟城区 v0",
+              "version": "v0-draft",
+              "captured_at": "2026-11-09T00:00:00Z",
+              "valid_from": null,
+              "valid_until": null,
+              "is_simulated": true,
+              "uncertainty_note": "草稿几何，不是实测场地。二维点没有测量高度。alt_m=0 且 alt_ref=agl 表示按地面理解，不是缺失值占位。"
+            }
+          },
+          {
+            "site_id": "L4",
+            "position": {
+              "frame": "enu_m",
+              "alt_m": 0.0,
+              "alt_ref": "agl",
+              "x_m": 700.0,
+              "y_m": 2700.0,
+              "lat_deg": null,
+              "lon_deg": null
+            },
+            "radius_m": 30.0,
+            "compatible_vehicle_types": [
+              "placeholder"
+            ],
+            "available_from": null,
+            "available_until": null,
+            "occupied": false,
+            "provenance": {
+              "source": "自建虚拟城区 v0",
+              "version": "v0-draft",
+              "captured_at": "2026-11-09T00:00:00Z",
+              "valid_from": null,
+              "valid_until": null,
+              "is_simulated": true,
+              "uncertainty_note": "草稿几何，不是实测场地。二维点没有测量高度。alt_m=0 且 alt_ref=agl 表示按地面理解，不是缺失值占位。"
+            }
+          }
+        ],
+        "events": [
+          {
+            "event_id": "zone-R01",
+            "kind": "restriction_zone",
+            "geometry": {
+              "type": "Feature",
+              "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                  [
+                    [
+                      1000,
+                      1200
+                    ],
+                    [
+                      1400,
+                      1200
+                    ],
+                    [
+                      1400,
+                      1700
+                    ],
+                    [
+                      1000,
+                      1700
+                    ],
+                    [
+                      1000,
+                      1200
+                    ]
+                  ]
+                ]
+              },
+              "properties": {
+                "id": "R01"
+              },
+              "zone_id": "R01"
+            },
+            "alt_min_m": 0.0,
+            "alt_max_m": 120.0,
+            "effective_from": "2026-11-09T00:00:00Z",
+            "effective_until": null,
+            "provenance": {
+              "source": "自建虚拟城区 v0",
+              "version": "v0-draft",
+              "captured_at": "2026-11-09T00:00:00Z",
+              "valid_from": null,
+              "valid_until": null,
+              "is_simulated": true,
+              "uncertainty_note": "草稿几何，不是实测场地。由加载场景时点名，视为当前已经生效。"
+            }
+          }
+        ],
+        "note": "仿真草稿。几何来自 scenarios/v0（status=draft，is_simulated=true），不是实测空域。障碍物不在 RiskSnapshot 里，规划时仍从 obstacles.geojson 读取。本次标为已生效的限制区：R01。"
+      }
+    },
+    {
+      "task_id": "T-stale-demo",
+      "snapshot": {
+        "snapshot_id": "snap-old",
+        "captured_at": "2020-01-01T00:00:00Z",
+        "valid_until": "2020-01-02T00:00:00Z",
+        "landing_sites": [],
+        "events": [],
+        "note": "示例。valid_until 在 2020，用来演示重新规划时的 409。"
+      }
+    }
+  ]
+}

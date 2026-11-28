@@ -114,12 +114,12 @@ def _documents():
 
 
 @lru_cache(maxsize=1)
-def _index():
+def _index(documents: tuple[tuple[str, bytes], ...]):
     # ponytail: scan this small, fixed document set in memory; index on disk if it grows substantially.
     rows = []
     frequencies: Counter[str] = Counter()
-    for path in _documents():
-        for excerpt in _split(path, (ROOT / path).read_bytes()):
+    for path, content in documents:
+        for excerpt in _split(path, content):
             body = _terms(excerpt.text)
             title = _terms(excerpt.heading.rsplit(" / ", 1)[-1])
             rows.append((excerpt, body, title))
@@ -132,7 +132,7 @@ def _keyword_search(query: str) -> list[dict]:
     terms = _terms(query)
     if not terms:
         return []
-    rows, frequencies = _index()
+    rows, frequencies = _index(tuple((path, (ROOT / path).read_bytes()) for path in _documents()))
     weights = {term: math.log1p(len(rows) / (1 + frequencies[term])) for term in terms}
     minimum = sum(weights.values()) * 0.29
     candidates = []

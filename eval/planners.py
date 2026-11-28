@@ -132,9 +132,16 @@ class _RealPlanner:
             self._vehicle = load_vehicle(self.vehicle_path)
         return self._vehicle
 
-    def _finish(self, scenario: dict[str, Any], plan_out: ScenarioPlan, *, drop_unsafe: bool) -> PlanResult:
+    def _finish(
+        self,
+        scenario: dict[str, Any],
+        plan_out: ScenarioPlan,
+        *,
+        drop_unsafe: bool,
+        scene,
+    ) -> PlanResult:
         vehicle = self.vehicle()
-        report = hard_constraint_report(plan_out, scenario, vehicle)
+        report = hard_constraint_report(plan_out, scenario, vehicle, scene=scene)
         found = plan_out.found
         profile = plan_out.profile
         length = plan_out.length_m
@@ -178,8 +185,9 @@ class StaticAStarPlanner(_RealPlanner):
 
     def plan(self, scenario: dict[str, Any], seed: int) -> PlanResult:
         del seed  # 确定性算法，种子不改变航线
-        plan_out = plan_baseline_annotated(scenario, shared_scene(), self.vehicle())
-        return self._finish(scenario, plan_out, drop_unsafe=False)
+        scene = shared_scene()
+        plan_out = plan_baseline_annotated(scenario, scene, self.vehicle())
+        return self._finish(scenario, plan_out, drop_unsafe=False, scene=scene)
 
 
 class DiversionAStarPlanner(_RealPlanner):
@@ -190,8 +198,9 @@ class DiversionAStarPlanner(_RealPlanner):
 
     def plan(self, scenario: dict[str, Any], seed: int) -> PlanResult:
         del seed
-        plan_out = plan_scenario_with_diversion(scenario, shared_scene(), self.vehicle())
-        return self._finish(scenario, plan_out, drop_unsafe=True)
+        scene = shared_scene()
+        plan_out = plan_scenario_with_diversion(scenario, scene, self.vehicle())
+        return self._finish(scenario, plan_out, drop_unsafe=True, scene=scene)
 
 
 def get(

@@ -1,0 +1,76 @@
+{
+  "example": true,
+  "example_note": "示例。GET /tasks 的示例列表，两条都是构造任务。",
+  "payload": [
+    {
+      "task_id": "T-20261109-001",
+      "origin": {
+        "frame": "enu_m",
+        "alt_m": 0.0,
+        "alt_ref": "rel_takeoff",
+        "x_m": 150.0,
+        "y_m": 150.0,
+        "lat_deg": null,
+        "lon_deg": null
+      },
+      "destination": {
+        "frame": "enu_m",
+        "alt_m": 30.0,
+        "alt_ref": "rel_takeoff",
+        "x_m": 2650.0,
+        "y_m": 2750.0,
+        "lat_deg": null,
+        "lon_deg": null
+      },
+      "payload_kg": 1.0,
+      "vehicle_type": "placeholder",
+      "initial_energy_wh": 100.0,
+      "reserve_energy_wh": 20.0,
+      "time_limit_s": null,
+      "provenance": {
+        "source": "harmony-mock",
+        "version": "0",
+        "captured_at": "2026-11-09T00:00:00Z",
+        "valid_from": null,
+        "valid_until": null,
+        "is_simulated": true,
+        "uncertainty_note": "示例。不是实测任务，坐标来自文档中的示例，不是真实地点。"
+      }
+    },
+    {
+      "task_id": "T-stale-demo",
+      "origin": {
+        "frame": "enu_m",
+        "alt_m": 0.0,
+        "alt_ref": "rel_takeoff",
+        "x_m": 500.0,
+        "y_m": 500.0,
+        "lat_deg": null,
+        "lon_deg": null
+      },
+      "destination": {
+        "frame": "enu_m",
+        "alt_m": 30.0,
+        "alt_ref": "rel_takeoff",
+        "x_m": 2500.0,
+        "y_m": 2500.0,
+        "lat_deg": null,
+        "lon_deg": null
+      },
+      "payload_kg": 1.0,
+      "vehicle_type": "placeholder",
+      "initial_energy_wh": 100.0,
+      "reserve_energy_wh": 20.0,
+      "time_limit_s": null,
+      "provenance": {
+        "source": "harmony-mock",
+        "version": "0",
+        "captured_at": "2026-11-09T00:00:00Z",
+        "valid_from": null,
+        "valid_until": null,
+        "is_simulated": true,
+        "uncertainty_note": "示例。不是实测任务，坐标来自文档中的示例，不是真实地点。"
+      }
+    }
+  ]
+}

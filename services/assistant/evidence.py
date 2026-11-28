@@ -819,9 +819,9 @@ def extract_confirmations(text: str) -> dict:
     payload = re.search(r"载荷\s*(?:重量|是|为)?\s*(\d+(?:\.\d+)?)\s*(?:公斤|千克|kg)", text, re.I)
     if payload:
         result["payload_kg"] = float(payload.group(1))
-    if re.search(r"\bP1\b|应急|紧急", text):
+    if re.search(r"\bP1\b|(?:应急|紧急)(?:配送|任务|运送)", text, re.I):
         result["priority"] = "P1"
-    elif re.search(r"\bP2\b|常规", text):
+    elif re.search(r"\bP2\b|常规(?:配送|任务)", text, re.I):
         result["priority"] = "P2"
     if result.get("origin_point") and result.get("destination_point"):
         result["places_confirmed"] = True
@@ -850,11 +850,18 @@ def resolve_place(
         }
     try:
         rows, provider = geocode.lookup(name, 5)
+        extra = []
+        university = re.match(r"(.+?大学)", name.strip())
+        if not rows and university:
+            rows = geocode.overpass_universities(university[1])
+            extra = rows
+            provider = "OpenStreetMap / Overpass"
         if rows:
             decision = place_match.resolve(name, rows)
             full_university = len(place_match.normalize(name)) >= 6 and "大学" in name
             if full_university or decision.get("status") != "ok" or decision.get("confidence") != "high":
-                extra = geocode.overpass_universities(name)
+                if not extra:
+                    extra = geocode.overpass_universities(university[1] if university else name)
                 if extra:
                     if full_university:
                         plain = [
@@ -865,8 +872,7 @@ def resolve_place(
                         campuses = [
                             row
                             for row in extra
-                            if "amenity/university" in (row.get("kind") or "")
-                            and "校区" in row["name"]
+                            if "amenity/university" in (row.get("kind") or "") and "校区" in row["name"]
                         ]
                         if not plain and len(campuses) >= 2:
                             return {
@@ -887,8 +893,7 @@ def resolve_place(
                                 ],
                             }
                     seen = {
-                        (row["name"], round(row["point"][0], 5), round(row["point"][1], 5))
-                        for row in rows
+                        (row["name"], round(row["point"][0], 5), round(row["point"][1], 5)) for row in rows
                     }
                     rows = rows + [
                         row
@@ -903,7 +908,7 @@ def resolve_place(
                     "name": best["name"],
                     "point": list(best["point"]),
                     "crs": "EPSG:4326",
-                    "source": provider,
+                    "source": "OpenStreetMap / Overpass" if best in extra else provider,
                     "address": best.get("address", ""),
                     "is_simulated": False,
                     "match": {

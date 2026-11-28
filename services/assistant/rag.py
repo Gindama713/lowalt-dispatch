@@ -21,6 +21,7 @@ METADATA = {"hnsw:space": "cosine"}
 
 _lock = threading.RLock()
 _collection = None
+_collection_fingerprint = None
 
 
 def _fingerprint() -> str:
@@ -79,10 +80,12 @@ def _build():
 
 
 def _ensure():
-    global _collection
+    global _collection, _collection_fingerprint
     with _lock:
-        if _collection is None:
+        fingerprint = _fingerprint()
+        if _collection is None or fingerprint != _collection_fingerprint:
             _collection = _build()
+            _collection_fingerprint = fingerprint
         return _collection
 
 
@@ -114,6 +117,7 @@ def search(query: str, limit: int = 3) -> list[dict]:
 
 def reset() -> None:
     """Drop the in-process handle so the next call rebuilds from disk."""
-    global _collection
+    global _collection, _collection_fingerprint
     with _lock:
         _collection = None
+        _collection_fingerprint = None

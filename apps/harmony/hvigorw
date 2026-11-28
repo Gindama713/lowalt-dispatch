@@ -1,0 +1,12 @@
+#!/bin/bash
+# 优先用工程里的 wrapper；没有则转给 DevEco Studio / Command Line Tools 自带的 hvigorw。
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")" && pwd)
+if [[ -f "$ROOT/hvigor/hvigor-wrapper.js" ]]; then
+  exec node "$ROOT/hvigor/hvigor-wrapper.js" "$@"
+fi
+if [[ -n "${DEVECO_HOME:-}" && -x "$DEVECO_HOME/tools/hvigor/bin/hvigorw" ]]; then
+  exec "$DEVECO_HOME/tools/hvigor/bin/hvigorw" "$@"
+fi
+echo "未找到 hvigor。请用 DevEco Studio 26.0.0 Release 打开本工程完成同步，或安装 Command Line Tools 后设置 DEVECO_HOME。" >&2
+exit 1

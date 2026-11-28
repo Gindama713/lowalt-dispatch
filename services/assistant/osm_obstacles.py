@@ -650,13 +650,20 @@ def _persist(result: dict, directory: Path, scene_id: str, query: str, max_age_h
     return result
 
 
+def _effective_cache_dir(cache_dir: Path | None) -> Path:
+    if cache_dir is not None:
+        return cache_dir
+    override = __import__("os").environ.get("AERIS_OSM_CACHE_DIR")
+    return Path(override) if override else CACHE_DIR
+
+
 def load_cached_scene(
     scene_id: str, cache_dir: Path | None = None, *, max_age_hours: float = CACHE_TTL_HOURS
 ) -> dict:
     """Load only a current, fully written real scene; reject traversal and stale files."""
     if not re.fullmatch(r"[0-9a-f]{16}", scene_id):
         raise OSMDataUnavailable("真实场景标识无效")
-    directory = (cache_dir or CACHE_DIR) / scene_id
+    directory = _effective_cache_dir(cache_dir) / scene_id
     try:
         metadata = json.loads((directory / "metadata.json").read_text(encoding="utf-8"))
         fetched = datetime.fromisoformat(
@@ -725,7 +732,7 @@ def fetch_obstacles(
     """
     bbox = route_bbox(origin, destination, margin_m)
     scene_id = hashlib.sha256(json.dumps(bbox, separators=(",", ":")).encode()).hexdigest()[:16]
-    directory = (cache_dir or CACHE_DIR) / scene_id
+    directory = _effective_cache_dir(cache_dir) / scene_id
     if not force_refresh:
         try:
             return load_cached_scene(scene_id, cache_dir, max_age_hours=max_age_hours)

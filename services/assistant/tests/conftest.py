@@ -16,14 +16,22 @@ from services.assistant.app import app as bff_app
 
 
 @pytest.fixture(autouse=True)
-def _stub_real_route(monkeypatch):
-    """Never touch Overpass during unit tests.
-
-    Intake creation computes one real-geometry route by default; tests must be
-    offline and deterministic, so the module-level provider is replaced unless a
-    test injects its own. Tests that need a failure pass their own provider.
-    """
+def _stub_real_route(monkeypatch, tmp_path):
+    """Never touch Overpass or shared workspace airspace snapshots during unit tests."""
+    from services.assistant import airspace_snapshot, navigation
+    from services.assistant import app as app_module
     from services.assistant import tools as tools_module
+    from services.assistant.airspace_snapshot import AirspaceSnapshotStore
+
+    isolated_airspace = AirspaceSnapshotStore(root=tmp_path / "airspace_snapshots")
+    monkeypatch.setattr(airspace_snapshot, "store", isolated_airspace)
+    monkeypatch.setattr(navigation, "airspace_store", isolated_airspace)
+    monkeypatch.setattr(tools_module, "airspace_store", isolated_airspace)
+    monkeypatch.setattr(app_module, "airspace_store", isolated_airspace)
+
+    from services.assistant import flysafe
+
+    monkeypatch.setattr(flysafe, "flysafe_live_enabled", lambda: False)
 
     def stub(origin, destination, scheduled_for):
         return {

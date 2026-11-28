@@ -183,10 +183,9 @@ test("stop, clear confirmation, mobile layout and keyboard shortcuts stay usable
   page,
 }) => {
   await openAssistant(page);
-  await page.route("**/api/assistant/turn", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    await route.fulfill({ status: 503, body: "" }).catch(() => {});
-  });
+  // Hold the turn open until the page aborts it. A short timed 503
+  // disappears the stop button before Playwright can finish the click.
+  await page.route("**/api/assistant/turn", () => new Promise(() => {}));
   await page
     .getByRole("textbox", { name: "向调度助手提问" })
     .fill("查询当前状态");

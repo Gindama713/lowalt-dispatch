@@ -1,0 +1,6 @@
+{
+  "modelVersion": "26.0.0",
+  "description": "低空应急配送 HarmonyOS 第一期。只查看和请求规划，不下发飞控指令。",
+  "dependencies": {},
+  "devDependencies": {}
+}

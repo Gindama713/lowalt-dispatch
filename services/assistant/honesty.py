@@ -13,6 +13,10 @@ FORBIDDEN_PHRASES = (
     "绝对安全",
     "可以放心飞",
     "已通过所有检查",
+    "现实中没有禁飞区",
+    "已经获准飞行",
+    "已获准飞行",
+    "空域已批准",
 )
 _NUMBER = re.compile(r"(-?\d+(?:\.\d+)?)\s*(mm/h|m/s|Wh|mm|kg)")
 _RECOMMEND = re.compile(r"建议.{0,12}(起飞|出发)")

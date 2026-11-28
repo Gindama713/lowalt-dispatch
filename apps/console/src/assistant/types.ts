@@ -21,12 +21,15 @@ export type AssistantContext = {
   selected_task_id: string | null;
   route_id: string | null;
   selected_intake_id?: string | null;
+  airspace_snapshot_id?: string | null;
   active_route?: {
     route_id: string;
     task_id: string | null;
     frame: "WGS84" | "ENU";
     source: string;
     waypoints: Point[];
+    constraint_snapshot_id?: string | null;
+    constraint_digest?: string | null;
   } | null;
   progress: number;
   telemetry_mode: "demo" | "live" | "planning";
@@ -133,6 +136,7 @@ export type IntakeConfirmation = {
   priority: "P1" | "P2";
 };
 export type AssistantResult = {
+  intake?: { id: string; origin: string; destination: string } | null;
   turn_id: string;
   provider: "local" | "maas";
   text: string;
@@ -179,6 +183,7 @@ export type Packet =
   | { type: "heartbeat" };
 
 export const toolLabels: Record<string, string> = {
+  inspect_mission_plan: "复核工单航线、天气与备降依据",
   get_task_evidence: "读取冻结任务证据",
   search_project_docs: "检索项目文档",
   get_flight_status: "读取遥测快照",
@@ -191,7 +196,8 @@ export const toolLabels: Record<string, string> = {
   get_capabilities: "检查接入能力",
   resolve_real_place: "解析地点坐标",
   get_weather_forecast: "读取时段天气预报",
-  get_airspace_zones: "列出草稿限制区",
+  get_airspace_zones: "读取空域约束快照",
+  inspect_airspace_constraints: "核查任务禁飞区与航段冲突",
   create_task_intake: "确认/生成任务工单",
   get_intake_overview: "汇总工单图表数据",
 };

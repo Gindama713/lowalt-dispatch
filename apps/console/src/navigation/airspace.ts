@@ -49,13 +49,132 @@ export type AirspaceRegion = {
   source_ref: string;
   source_kind: "official" | "manufacturer" | "team";
   updated_at: string;
+  fetched_at?: string;
   effective_from: string | null;
   effective_until: string | null;
   is_simulated: boolean;
   altitude_ref: AltitudeRef | null;
   max_height_m: number | null;
   description: string;
+  participates_in_avoidance?: boolean;
+  buffer_m?: number;
+  avoidance_rule?: string;
 };
+
+export type ConstraintSnapshotData = {
+  snapshot_id: string;
+  version: string;
+  digest: string;
+  crs: "EPSG:4326";
+  coordinate_system: "WGS84";
+  source_status:
+    | "not_loaded"
+    | "known_empty"
+    | "user_imported"
+    | "simulation_preset"
+    | "query_failed"
+    | "manufacturer_reference"
+    | "unavailable";
+  is_simulated: boolean;
+  fetched_at: string;
+  zone_buffer_m: number;
+  buffer_source: string;
+  boundary_rule: string;
+  boundary_rule_note?: string;
+  conservative_rule?: string;
+  failure_reason?: string;
+  total_zone_count: number;
+  enforced_zone_count: number;
+  enforced_zone_ids: string[];
+  zones: AirspaceRegion[];
+};
+
+export type AirspaceConflictItem = {
+  zone_id: string;
+  zone_name: string;
+  zone_kind: AirspaceKind;
+  is_simulated: boolean;
+  segment_index: number;
+  segment_number: number;
+  segment_start: [number, number];
+  segment_end: [number, number];
+  conflict_type: string;
+  distance_m: number;
+  buffer_m: number;
+  reason: string;
+};
+
+export type AirspaceCheckData = {
+  status:
+    | "passed_known_snapshot"
+    | "conflict"
+    | "known_empty_snapshot"
+    | "no_enforced_zones_in_snapshot"
+    | "snapshot_not_loaded"
+    | "query_failed"
+    | "unavailable"
+    | "not_checked_legacy";
+  passed_known_snapshot: boolean | null;
+  operationally_approved: boolean;
+  verdict_label: string;
+  snapshot_id: string | null;
+  snapshot_version?: string | null;
+  snapshot_digest: string | null;
+  crs: string;
+  source_status?: string;
+  enforced_zone_count: number;
+  total_zone_count: number;
+  enforced_zone_ids: string[];
+  zone_buffer_m: number | null;
+  buffer_source?: string;
+  boundary_rule?: string;
+  conflicts: AirspaceConflictItem[];
+  conflicting_zone_ids: string[];
+  conflicting_segment_indices: number[];
+  checked_segment_count?: number;
+  gaps: string[];
+  checked_at?: string;
+};
+
+export const ACTIVE_SNAPSHOT_STORAGE_KEY = "aeris-airspace-snapshot-id";
+
+export function regionsFromSnapshot(
+  snapshot: ConstraintSnapshotData | null | undefined,
+): AirspaceRegion[] {
+  if (!snapshot || !Array.isArray(snapshot.zones)) return [];
+  return snapshot.zones.map((z) => ({
+    id: z.id,
+    name: z.name,
+    kind: z.kind,
+    geometry: structuredClone(z.geometry),
+    source: z.source,
+    source_ref: z.source_ref ?? "",
+    source_kind: z.source_kind ?? "team",
+    updated_at: z.updated_at || z.fetched_at || new Date().toISOString(),
+    fetched_at: z.fetched_at,
+    effective_from: z.effective_from ?? null,
+    effective_until: z.effective_until ?? null,
+    is_simulated: Boolean(z.is_simulated),
+    altitude_ref: z.altitude_ref ?? null,
+    max_height_m: z.max_height_m ?? null,
+    description: z.description ?? "",
+    participates_in_avoidance: z.participates_in_avoidance,
+    buffer_m: z.buffer_m,
+    avoidance_rule: z.avoidance_rule,
+  }));
+}
+
+export function geojsonFromRegions(regions: AirspaceRegion[]) {
+  return {
+    type: "FeatureCollection" as const,
+    coordinate_system: "WGS84" as const,
+    features: regions.map(({ geometry, ...properties }) => ({
+      type: "Feature" as const,
+      geometry,
+      properties,
+    })),
+  };
+}
 const time = (v: unknown): v is string =>
   typeof v === "string" &&
   /(?:Z|[+-]\d\d:\d\d)$/.test(v) &&
@@ -74,6 +193,43 @@ export const regionPoints = (r: AirspaceRegion): [number, number][] =>
   )
     .flat()
     .map((p) => [p[0], p[1]]);
+
+/** Endpoints plus zone vertices inside the route box expanded by padDeg. */
+export function flysafeOverviewPoints(
+  origin: [number, number] | null | undefined,
+  destination: [number, number] | null | undefined,
+  regions: AirspaceRegion[],
+  padDeg = 0.3,
+): [number, number][] {
+  const anchors = [origin, destination].filter(
+    (point): point is [number, number] =>
+      !!point &&
+      point.length === 2 &&
+      Number.isFinite(point[0]) &&
+      Number.isFinite(point[1]),
+  );
+  if (!anchors.length) return [];
+  const west = Math.min(...anchors.map((point) => point[0])) - padDeg;
+  const east = Math.max(...anchors.map((point) => point[0])) + padDeg;
+  const south = Math.min(...anchors.map((point) => point[1])) - padDeg;
+  const north = Math.max(...anchors.map((point) => point[1])) + padDeg;
+  const points = anchors.map(
+    (point) => [point[0], point[1]] as [number, number],
+  );
+  for (const region of regions) {
+    for (const vertex of regionPoints(region)) {
+      if (
+        vertex[0] >= west &&
+        vertex[0] <= east &&
+        vertex[1] >= south &&
+        vertex[1] <= north
+      ) {
+        points.push(vertex);
+      }
+    }
+  }
+  return points;
+}
 
 /** Only displays explicitly attributed WGS84 geometry; this is no source/approval verification. */
 export function parseAirspaces(value: unknown): AirspaceRegion[] {

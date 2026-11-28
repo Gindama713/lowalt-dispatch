@@ -22,6 +22,8 @@ results/
 
 这份 CSV 测于合并上游之前（栅格净空 20 m，且当时 S4-05 的任务单能量与现在的 `initial_energy_wh: 50` 不同）。合并后不要把表里的航程或余量当成当前代码的重跑结果。
 
+`frozen_example_vehicle_e9674ab.csv` 及同名 `.meta.json`、`.profiles.json` 是 2026-11-27 从 Antigravity 汇总包收进来的历史快照。meta 自述 `git_commit=e9674ab`、示例机型、`planning_only_not_flight`。它不是本融合分支的重跑，不能写成当前代码的结果或实飞。
+
 冻结时建议把 git commit 写进文件名或 meta，确保能回到当时的代码：
 
 ```bash

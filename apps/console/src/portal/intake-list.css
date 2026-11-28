@@ -201,9 +201,63 @@
   color: var(--intake-teal);
 }
 .intake-progress[data-status="pending"],
+.intake-progress[data-status="legacy"],
+.intake-progress[data-status="no_route"],
 .intake-progress[data-status="unavailable"] {
   background: var(--intake-amber-soft);
   color: var(--intake-amber);
+}
+.intake-airspace-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--intake-soft);
+  color: var(--intake-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.intake-airspace-status svg {
+  flex: none;
+  margin-top: 2px;
+}
+.intake-airspace-status[data-check="passed_known_snapshot"] {
+  background: var(--intake-teal-soft);
+  color: var(--intake-teal);
+}
+.intake-airspace-status[data-check="conflict"] {
+  background: #fdecec;
+  color: #b91c1c;
+}
+.intake-airspace-status[data-check="not_checked_legacy"] {
+  background: var(--intake-amber-soft);
+  color: var(--intake-amber);
+}
+.intake-ticket-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.intake-recalc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--intake-line);
+  border-radius: 7px;
+  background: var(--intake-soft);
+  color: var(--intake-ink);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.intake-recalc-btn:hover:not(:disabled) {
+  border-color: var(--intake-teal);
+  color: var(--intake-teal);
 }
 .intake-ticket-meta {
   display: flex;

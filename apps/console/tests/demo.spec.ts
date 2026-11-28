@@ -68,13 +68,12 @@ test("competition replay loads the local model and preserves the simulated missi
   );
   await expect(page.locator(".demo-scene")).toHaveAttribute(
     "data-city",
-    "waterfront",
-  );
-  await expect(page.locator(".demo-scene")).toHaveAttribute(
-    "data-buildings",
-    "51",
+    "shenzhen-bay-10x",
   );
   const scene = page.locator(".demo-scene");
+  expect(Number(await scene.getAttribute("data-buildings"))).toBeGreaterThan(
+    450,
+  );
   expect(Number(await scene.getAttribute("data-details"))).toBeGreaterThan(
     8000,
   );

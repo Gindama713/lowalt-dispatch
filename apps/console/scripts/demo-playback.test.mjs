@@ -14,7 +14,22 @@ import {
   visualViewAt,
 } from "../src/demo/playback.ts";
 
-import { landmarks, makeCityLots } from "../src/demo/city-layout.ts";
+import {
+  landmarks,
+  makeCityLots,
+  RIVER_CENTER_X,
+  RIVER_HALF_WIDTH,
+  shenzhenLandmarks,
+  SHORELINE_Z,
+} from "../src/demo/city-layout.ts";
+import {
+  DRONE_CYCLE_PERIOD,
+  SUBSYSTEM_SPOTLIGHTS,
+  evaluateDroneCycle,
+  smoothBell,
+  smootherstep,
+} from "../src/drone-explode-cycle.ts";
+import { frozenEvalBaseline, studioExplodeAt } from "../src/demo/playback.ts";
 
 test("environment UI v2 accepts evidence and rejects malformed nested blocks", () => {
   const base = { title: "environment", source: "test", as_of: null, note: "" };
@@ -89,10 +104,14 @@ test("frozen task contracts accept both cases and reject contradictory or malfor
   );
 });
 
-test("fictional city has stable districts and unobstructed visual landmark labels", () => {
+test("shenzhen art city layout is deterministic and keeps pads clear", () => {
   const lots = makeCityLots();
   assert.deepEqual(lots, makeCityLots());
-  assert.equal(lots.length, 51);
+  assert.ok(
+    lots.length >= 450,
+    `expected >= 450 city lots, got ${lots.length}`,
+  );
+  assert.equal(shenzhenLandmarks.length, 9);
   assert.deepEqual([...new Set(lots.map((lot) => lot.style))].sort(), [
     "office",
     "residential",
@@ -100,9 +119,12 @@ test("fictional city has stable districts and unobstructed visual landmark label
   ]);
   for (const lot of lots) {
     assert.ok(lot.width > 0 && lot.depth > 0 && lot.height > 0);
-    assert.ok(Math.abs(lot.x) - lot.width / 2 > 14);
+    assert.ok(lot.z + lot.depth / 2 < SHORELINE_Z - 14);
+    assert.ok(
+      Math.abs(lot.x - RIVER_CENTER_X) - lot.width / 2 > RIVER_HALF_WIDTH + 8,
+    );
     for (const point of landmarks) {
-      assert.ok(Math.hypot(lot.x - point.x, lot.z - point.z) >= 15);
+      assert.ok(Math.hypot(lot.x - point.x, lot.z - point.z) >= 27);
     }
   }
 });
@@ -168,4 +190,28 @@ test("wind fields cover the selected city and never reuse another region's grid"
   assert.deepEqual(sampleWind(field, point), [3, -1]);
   assert.equal(sampleWind(field, [121.47, 31.23]), null);
   assert.ok(region.west <= point[0] && region.east >= point[0]);
+});
+
+test("studio explode factor and historical frozen snapshot stay labeled", () => {
+  assert.equal(studioExplodeAt("assembled", 42), 0);
+  assert.equal(studioExplodeAt("exploded", 0), 1);
+  assert.equal(studioExplodeAt("auto", 42), 1);
+  assert.equal(frozenEvalBaseline.commit, "e9674ab");
+  assert.match(frozenEvalBaseline.vehicleNote, /非实飞/);
+  assert.equal(frozenEvalBaseline.diversionUnsafeRoutes, 0);
+});
+
+test("backdrop cycle visits each subsystem without claiming a flight", () => {
+  assert.equal(smootherstep(0), 0);
+  assert.equal(smootherstep(1), 1);
+  assert.equal(evaluateDroneCycle(0).phase, "assembled");
+  assert.equal(
+    evaluateDroneCycle(DRONE_CYCLE_PERIOD).phase,
+    evaluateDroneCycle(0).phase,
+  );
+  assert.equal(smoothBell(0.5), 1);
+  for (const spot of SUBSYSTEM_SPOTLIGHTS) {
+    assert.ok(spot.id);
+    assert.ok(spot.systems.length > 0);
+  }
 });

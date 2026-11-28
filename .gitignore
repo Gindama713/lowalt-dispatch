@@ -30,6 +30,8 @@ dist-ssr/
 *.mcap
 logs/
 logs_*/
+# 全国 FlySafe 显示缓存，体积大，不入库
+logs/flysafe-national/
 
 # ---------- API 本地库 ----------
 # SQLite 是开发存储，不是评测证据。PostgreSQL 尚未接入。

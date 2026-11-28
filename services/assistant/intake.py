@@ -121,6 +121,9 @@ class TaskIntake(Strict):
     airspace: dict
     route_preview: dict | None
     real_route: dict | None = None
+    constraint_snapshot: dict | None = None
+    airspace_check: dict | None = None
+    route_history: list[dict] = Field(default_factory=list)
     warnings: list[str]
     created_at: str
     request_digest: str | None = None
@@ -139,6 +142,9 @@ class TaskIntake(Strict):
         route_preview: dict | None,
         warnings: list[str],
         real_route: dict | None = None,
+        constraint_snapshot: dict | None = None,
+        airspace_check: dict | None = None,
+        route_history: list[dict] | None = None,
     ):
         return cls(
             intake_id=str(uuid4()),
@@ -153,9 +159,36 @@ class TaskIntake(Strict):
             airspace=airspace,
             route_preview=route_preview,
             real_route=real_route,
+            constraint_snapshot=constraint_snapshot,
+            airspace_check=airspace_check,
+            route_history=route_history or [],
             warnings=warnings,
             created_at=datetime.now(UTC).isoformat(),
         )
+
+
+def enrich_legacy_intake(record: dict) -> dict:
+    """Annotate older building-only intake records that predate ConstraintSnapshot."""
+    if not isinstance(record, dict):
+        return record
+    route = record.get("real_route") or {}
+    snap = record.get("constraint_snapshot") or (route.get("planning_result") or {}).get(
+        "constraint_snapshot"
+    )
+    if snap is None and route.get("status") == "ok" and record.get("airspace_check") is None:
+        from services.assistant.airspace_snapshot import check_route_against_snapshot
+
+        legacy_check = check_route_against_snapshot(route.get("waypoints") or [], None)
+        return {
+            **record,
+            "constraint_snapshot": None,
+            "airspace_check": legacy_check,
+            "route_history": list(record.get("route_history") or []),
+        }
+    return {
+        **record,
+        "route_history": list(record.get("route_history") or []),
+    }
 
 
 class IntakeStore:
@@ -208,14 +241,14 @@ class IntakeStore:
         with self._lock:
             if not path.exists():
                 raise KeyError(intake_id)
-            return json.loads(path.read_text(encoding="utf-8"))
+            return enrich_legacy_intake(json.loads(path.read_text(encoding="utf-8")))
 
     def list(self, limit: int = 100) -> list[dict]:
         with self._lock:
             if not self.root.exists():
                 return []
             paths = sorted(self.root.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
-            return [json.loads(p.read_text(encoding="utf-8")) for p in paths]
+            return [enrich_legacy_intake(json.loads(p.read_text(encoding="utf-8"))) for p in paths]
 
 
 store = IntakeStore()

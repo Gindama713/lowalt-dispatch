@@ -1,4 +1,8 @@
 -r ../../requirements.txt
+# DJI FlySafe 厂商地理围栏查询。Python >= 3.12 才安装；3.11 的 M3 任务会跳过此行。
+# 上游 https://github.com/mochenya/dji-geo 在 2026-11-20 的 0.1.0 发布没有 LICENSE 文件，
+# 轮子元数据也未声明许可证。这里只依赖 PyPI 包，不把源码树拷进本仓库。
+dji-geo==0.1.0; python_version >= "3.12"
 fastapi>=0.115,<1
 uvicorn>=0.30,<1
 httpx>=0.27,<1

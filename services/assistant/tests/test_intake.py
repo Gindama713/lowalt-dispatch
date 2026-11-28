@@ -203,7 +203,10 @@ def test_create_task_intake_tool_records_evidence(tmp_path, monkeypatch):
     assert result["dispatch_enabled"] is False
     stored = tools.intake_store.get(result["intake_id"])
     assert stored["is_simulated"] is True
-    assert stored["airspace"]["status"] == "draft"
+    assert stored["airspace"]["status"] == "snapshot_not_loaded"
+    assert stored["airspace"]["crs"] == "EPSG:4326"
+    assert stored["constraint_snapshot"]["source_status"] == "not_loaded"
+    assert stored["constraint_snapshot"]["crs"] == "EPSG:4326"
     assert stored["weather"]["status"] == "ok"
     assert stored["weather"]["kind"] == "forecast"
     assert stored["route_preview"] is None

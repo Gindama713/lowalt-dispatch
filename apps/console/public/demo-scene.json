@@ -3,9 +3,9 @@
     "source": "planner/diversion.py (astar_static) + validator/checks.py / scenarios/v0",
     "isSimulated": true,
     "note": "Local ENU frozen algorithm run; example vehicle only. Building heights and terrain are illustrative, not measurements.",
-    "generated_at": "2026-11-25T11:04:56.999759+00:00",
-    "revision": "a514b3d7823acf67550db9c1050fd101691bdc526c20efffa5a0c7e5e05448d9",
-    "route_digest": "ff80617a2fe24b7155a40b12bafaecfd969e06f9e39cc2618d7ddad0b60ea118"
+    "generated_at": "2026-11-28T10:24:21.345087+00:00",
+    "revision": "508c59d1374f6692a5fde48f2836b7d638fae6acab42cd37d29f02c22e08837f",
+    "route_digest": "f90905cc48a30bcd3f1eb98c55159afeddf12b1580e23d9e4df7d0d6f0d3dffc"
   },
   "route": [
     [

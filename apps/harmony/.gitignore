@@ -1,0 +1,14 @@
+oh_modules/
+node_modules/
+.hvigor/
+.idea/
+.preview/
+build/
+local.properties
+*.hap
+*.app
+*.har
+*.p12
+*.cer
+*.p7b
+test/.generated/

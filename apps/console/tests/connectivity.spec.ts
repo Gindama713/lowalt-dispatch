@@ -84,8 +84,8 @@ test("imported exclusion reaches the WGS84 planner and invalidates the old route
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(region)),
   });
-  await expect(page.getByTestId("real-routing")).not.toContainText(
-    "3 个 WGS84 航点",
+  await expect(page.getByTestId("real-routing")).toContainText(
+    "旧版本结果已失效",
   );
   let requested: any;
   await page.route("**/api/assistant/navigation/candidates", (r) => {
@@ -94,7 +94,7 @@ test("imported exclusion reaches the WGS84 planner and invalidates the old route
   });
   await page
     .getByTestId("real-routing")
-    .getByRole("button", { name: "计算真实避障航线" })
+    .getByRole("button", { name: "按当前约束重新规划" })
     .click();
   await expect
     .poll(() => requested?.avoid_regions?.[0]?.id)
@@ -215,7 +215,7 @@ test("a missing matching snapshot never publishes a restored route", async ({
   await expect(page.getByTestId("real-routing")).toContainText(
     "工单建筑快照不可用或过期",
   );
-  await expect(page.getByTestId("real-routing")).not.toContainText(
-    "3 个 WGS84 航点",
+  await expect(page.getByTestId("real-routing")).toContainText(
+    "历史建筑避障结果，空域未核对",
   );
 });

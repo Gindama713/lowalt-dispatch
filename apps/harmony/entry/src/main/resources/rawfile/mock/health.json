@@ -1,0 +1,30 @@
+{
+  "example": true,
+  "example_note": "示例。GET /health 的字段形状，数值是构造的。",
+  "payload": {
+    "status": "ok",
+    "schema_version": "0.1.0",
+    "service": "lowalt-dispatch-api",
+    "git_commit": "example",
+    "storage_backend": "memory",
+    "storage_note": "示例。字段对齐 GET /health。这里不是正在运行的进程。",
+    "planner_entry": "planner.astar:plan_scenario",
+    "postgres": {
+      "name": "postgresql",
+      "configured": false,
+      "connected": false,
+      "note": "示例。未配置。RDS_DSN 和 DATABASE_URL 都是空的，当前不会连接 PostgreSQL。"
+    },
+    "redis": {
+      "name": "redis",
+      "configured": false,
+      "connected": false,
+      "note": "示例。未配置。DCS_HOST 和 REDIS_URL 都是空的，当前不会连接 Redis。"
+    },
+    "agent": {
+      "status": "not_implemented",
+      "entry_configured": false,
+      "detail": "示例。M3 未接入。手机端不下发飞控指令。"
+    }
+  }
+}

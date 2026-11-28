@@ -1,0 +1,14 @@
+{
+  "example": true,
+  "example_note": "示例。GET /margin。unavailable 时三个派生值必须是 null。",
+  "payload": {
+    "task_id": "T-20261109-001",
+    "route_id": "v1",
+    "status": "unavailable",
+    "detail": "示例：没有备降余量剖面。status=unavailable，剖面和派生数字都是 null，不用 0 代替。",
+    "profile": null,
+    "min_margin_wh": null,
+    "negative_sample_count": null,
+    "is_feasible": null
+  }
+}

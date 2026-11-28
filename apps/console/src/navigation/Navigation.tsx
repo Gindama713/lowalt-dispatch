@@ -51,6 +51,7 @@ import {
   parseAirspaces,
   type AirspaceKind,
   type AirspaceRegion,
+  type ConstraintSnapshotData,
 } from "./airspace";
 
 type Preferences = {
@@ -136,6 +137,11 @@ type Input = {
   onRealCandidates: (route: NavRoute) => void;
   regions: AirspaceRegion[];
   setRegions: (regions: AirspaceRegion[]) => void;
+  activeSnapshot?: ConstraintSnapshotData | null;
+  onSyncAirspace?: (
+    regions: AirspaceRegion[],
+    mode?: "replace" | "known_empty" | "clear",
+  ) => Promise<ConstraintSnapshotData | null>;
   liveMode: boolean;
   liveFrame: LiveTelemetry | null;
   liveStatus: string;
@@ -181,22 +187,39 @@ export function useNavigation(input: Input) {
     setRegionError("");
     try {
       if (file.size > 5_000_000) throw new Error("空域文件不能超过5MB");
-      const parsed = parseAirspaces(JSON.parse(await file.text()));
+      const raw = JSON.parse(await file.text());
+      const parsed = parseAirspaces(raw);
       setRegions(parsed);
       setRegionKinds(Object.keys(airspaceKinds) as AirspaceKind[]);
       setSelectedRegion(parsed[0].id);
+      if (latest.current.onSyncAirspace) {
+        await latest.current.onSyncAirspace(parsed, "replace");
+      }
       latest.current.notify(
-        `已载入 ${parsed.length} 个区域；来源与适用性仍需人工核实`,
+        `已载入并同步服务端快照（${parsed.length} 个区域）；来源与适用性仍需人工核实`,
       );
       latest.current.onEvent(
-        "载入空域参考图层",
-        `${parsed.length} 个区域；仅供地图查看，未改变飞控电子围栏或授予许可。`,
+        "载入空域约束快照",
+        `${parsed.length} 个区域已写入服务端快照；禁飞/内控区参与二维全高度避让，未改变飞控电子围栏。`,
       );
     } catch (e) {
       setRegionError(
         e instanceof Error ? e.message : "空域格式错误，原图层未改变",
       );
     }
+  }
+  async function clearAirspace(mode: "clear" | "known_empty" = "clear") {
+    setRegionError("");
+    setRegions([]);
+    setSelectedRegion("");
+    if (latest.current.onSyncAirspace) {
+      await latest.current.onSyncAirspace([], mode);
+    }
+    latest.current.notify(
+      mode === "known_empty"
+        ? "已标记当前已知空域快照显式为空（0 区域）；官方空域仍须人工核对"
+        : "本次导入图层与工作区活跃快照已移除；未改变真实空域或飞控限制",
+    );
   }
   const [clock, setClock] = useState(Date.now);
   useEffect(() => {
@@ -676,6 +699,8 @@ export function useNavigation(input: Input) {
     setSelectedRegion,
     regionError,
     importAirspace,
+    clearAirspace,
+    activeSnapshot: input.activeSnapshot ?? null,
     preflightAssessment: assessPreflight(
       preflight,
       route,

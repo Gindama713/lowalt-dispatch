@@ -5,10 +5,17 @@ import {
   ChevronDown,
   CloudSun,
   Package,
+  RefreshCw,
   Route,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 
+import type {
+  AirspaceCheckData,
+  ConstraintSnapshotData,
+} from "../navigation/airspace";
 import { api } from "./api";
 import "./intake-list.css";
 
@@ -27,12 +34,20 @@ type Intake = {
     note: string;
   };
   airspace: { status: string; note: string; zones: unknown[] };
+  constraint_snapshot?: ConstraintSnapshotData | null;
+  airspace_check?: AirspaceCheckData | null;
+  route_history?: {
+    version_label: string;
+    rechecked_airspace_check?: AirspaceCheckData | null;
+  }[];
   route_preview: unknown | null;
   real_route?: {
     status?: string;
+    version_label?: string;
     waypoints?: unknown[];
     length_m?: number | null;
     reason?: string | null;
+    route_changed?: boolean | null;
   } | null;
   warnings: string[];
   created_at: string;
@@ -43,6 +58,8 @@ type Intake = {
 export function IntakeList() {
   const [items, setItems] = useState<Intake[]>([]);
   const [error, setError] = useState("");
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+
   useEffect(() => {
     let alive = true;
     api<{ items: Intake[] }>("/assistant/intakes")
@@ -57,6 +74,28 @@ export function IntakeList() {
       alive = false;
     };
   }, []);
+
+  async function recalculateIntake(intakeId: string) {
+    setRefreshingId(intakeId);
+    setError("");
+    try {
+      const updated = await api<Intake>(
+        `/assistant/intakes/${encodeURIComponent(intakeId)}/route`,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        },
+      );
+      setItems((prev) =>
+        prev.map((item) => (item.intake_id === intakeId ? updated : item)),
+      );
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "重算失败");
+    } finally {
+      setRefreshingId(null);
+    }
+  }
+
   if (!items.length && !error) return null;
   return (
     <section className="p-card p-spaced intake-board" data-testid="intake-list">
@@ -67,7 +106,7 @@ export function IntakeList() {
           </span>
           <div>
             <h2>AI 任务工单</h2>
-            <p>自然语言生成 · 任务信息与规划进展</p>
+            <p>自然语言生成 · 任务信息、航线版本与空域约束快照核对</p>
           </div>
         </div>
         <span className="intake-count">
@@ -75,21 +114,31 @@ export function IntakeList() {
           <small>张工单</small>
         </span>
       </div>
-      {error && <p className="p-muted">工单读取失败：{error}</p>}
+      {error && <p className="p-muted">工单操作提示：{error}</p>}
       <div className="intake-grid">
         {items.map((item) => {
           const status = item.real_route?.status;
+          const isLegacy =
+            status === "ok" &&
+            (!item.constraint_snapshot ||
+              item.airspace_check?.status === "not_checked_legacy");
           const label =
             status === "ok"
-              ? "航线已生成"
+              ? isLegacy
+                ? "历史建筑避障结果，空域未核对"
+                : `航线已生成${item.real_route?.version_label ? ` · ${item.real_route.version_label}` : ""}`
               : status === "pending"
                 ? "航线计算中"
-                : status === "unavailable"
+                : status === "unavailable" || status === "no_route"
                   ? "航线未生成"
                   : item.route_preview
                     ? "几何预览"
                     : "待规划";
           const length = item.real_route?.length_m;
+          const checkStatus = item.airspace_check?.status;
+          const lastArchived = item.route_history?.length
+            ? item.route_history[item.route_history.length - 1]
+            : null;
           return (
             <article
               key={item.intake_id}
@@ -145,7 +194,7 @@ export function IntakeList() {
               </div>
               <div
                 className="intake-progress"
-                data-status={status ?? "unplanned"}
+                data-status={isLegacy ? "legacy" : (status ?? "unplanned")}
               >
                 <Route size={14} />
                 <strong>{label}</strong>
@@ -153,12 +202,29 @@ export function IntakeList() {
                   <span>{(length / 1000).toFixed(2)} km</span>
                 )}
               </div>
+              <div className="intake-airspace-status" data-check={checkStatus}>
+                {checkStatus === "passed_known_snapshot" ? (
+                  <ShieldCheck size={13} />
+                ) : (
+                  <ShieldAlert size={13} />
+                )}
+                <span>
+                  {isLegacy
+                    ? "历史建筑避障结果，空域未核对"
+                    : (item.airspace_check?.verdict_label ??
+                      item.airspace.note)}
+                </span>
+              </div>
               <div className="intake-ticket-meta">
                 <span data-ready={item.weather.status === "ok"}>
                   <CloudSun size={13} />
                   {item.weather.status === "ok" ? "预报已获取" : "预报待获取"}
                 </span>
-                <span>工单记录 · 未下发</span>
+                <span>
+                  {item.constraint_snapshot
+                    ? `快照 ${item.constraint_snapshot.snapshot_id}`
+                    : "未绑定快照"}
+                </span>
               </div>
               <details className="intake-ticket-details">
                 <summary>
@@ -177,12 +243,34 @@ export function IntakeList() {
                   </p>
                   <p>天气：{item.weather.note}</p>
                   <p>空域：{item.airspace.note}</p>
+                  {item.constraint_snapshot && (
+                    <p>
+                      绑定快照：
+                      <code>{item.constraint_snapshot.snapshot_id}</code> · 摘要{" "}
+                      <code>
+                        {item.constraint_snapshot.digest.slice(0, 23)}…
+                      </code>{" "}
+                      · 纳入避让 {item.constraint_snapshot.enforced_zone_count}/
+                      {item.constraint_snapshot.total_zone_count} 区域
+                    </p>
+                  )}
+                  {lastArchived?.rechecked_airspace_check?.status ===
+                    "conflict" && (
+                    <p>
+                      原路线 {lastArchived.version_label} 冲突记录：第{" "}
+                      {lastArchived.rechecked_airspace_check.conflicting_segment_indices
+                        .map((i) => i + 1)
+                        .join("、")}{" "}
+                      航段与已知限制区冲突，已重算更新。
+                    </p>
+                  )}
                   <p>
                     {item.real_route?.status === "ok"
-                      ? `航线：${item.real_route.waypoints?.length ?? "未知"} 航点 / ${length == null ? "距离未知" : `${(length / 1000).toFixed(2)} km`}（OSM 建筑足迹避障）`
+                      ? `航线（${item.real_route.version_label ?? "v1"}）：${item.real_route.waypoints?.length ?? "未知"} 航点 / ${length == null ? "距离未知" : `${(length / 1000).toFixed(2)} km`}`
                       : item.real_route?.status === "pending"
                         ? "航线：后台计算中，稍后刷新查看"
-                        : item.real_route?.status === "unavailable"
+                        : item.real_route?.status === "unavailable" ||
+                            item.real_route?.status === "no_route"
                           ? `航线：未生成（${item.real_route.reason ?? "原因未知"}）`
                           : item.route_preview
                             ? "路线：几何预览（仿真）"
@@ -195,13 +283,32 @@ export function IntakeList() {
                   </ul>
                 </div>
               </details>
-              <a
-                className="intake-view-route"
-                href={`/airspace?intake=${encodeURIComponent(item.intake_id)}`}
-              >
-                在地图中查看
-                <ArrowUpRight size={15} />
-              </a>
+              <div className="intake-ticket-actions">
+                {(isLegacy || status === "ok" || status === "no_route") &&
+                  item.origin.point &&
+                  item.destination.point && (
+                    <button
+                      type="button"
+                      className="intake-recalc-btn"
+                      disabled={refreshingId === item.intake_id}
+                      onClick={() => void recalculateIntake(item.intake_id)}
+                    >
+                      <RefreshCw size={13} />
+                      {refreshingId === item.intake_id
+                        ? "重算中…"
+                        : isLegacy
+                          ? "按当前空域快照核对重算"
+                          : "按最新约束重新规划"}
+                    </button>
+                  )}
+                <a
+                  className="intake-view-route"
+                  href={`/airspace?intake=${encodeURIComponent(item.intake_id)}`}
+                >
+                  在地图中查看
+                  <ArrowUpRight size={15} />
+                </a>
+              </div>
             </article>
           );
         })}

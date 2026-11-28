@@ -480,3 +480,20 @@ def test_s2_01_diversion_infeasible_due_to_active_nfz() -> None:
     res = plan_scenario_with_diversion(sc, scene, vehicle)
     assert res.found is False
     assert "已激活的飞行中限制区" in (res.reason or ""), res.reason
+
+
+def test_s2_01_baseline_rejected_by_hard_constraint_report() -> None:
+    # S2-01 的几何基线在激活后的 R01 里穿过；hard_constraint_report 必须
+    # 与搜索期和独立校验器同口径判不可行，不能把违规基线记成 feasible/delivered。
+    from planner.diversion import hard_constraint_report
+
+    scene = load_scene()
+    suite = load_suite()
+    sc = next(s for s in suite["scenarios"] if s["id"] == "S2-01")
+    vehicle = load_vehicle(EXAMPLE)
+    base = plan_baseline_annotated(sc, scene, vehicle)
+    assert base.found is True
+    report = hard_constraint_report(base, sc, vehicle, scene=scene)
+    assert report.feasible is False
+    assert report.hard_violations >= 1
+    assert "限制区" in report.reason, report.reason

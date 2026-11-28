@@ -16,11 +16,14 @@ import {
   chapters,
   DURATION,
   frameAt,
+  studioExplodeAt,
   timeLabel,
   visualViewAt,
+  type StudioExplode,
   type VisualChoice,
 } from "./playback";
 import type { StudioAngle } from "./Studio";
+import AlgorithmExplain from "./AlgorithmExplain";
 import Scene from "./Scene";
 import "./demo.css";
 import { readTaskEvidence, type TaskEvidence } from "../assistant/taskEvidence";
@@ -33,7 +36,7 @@ const explanations = [
   },
   {
     title: "一座城市，一张任务单",
-    copy: "虚构城区与 CR30 模型共同呈现任务环境。所有地标为场景示意。",
+    copy: "深圳湾艺术场景与 CR30 只作展示。地标不是测绘坐标，也不作为算法避障依据。",
   },
   {
     title: "沿着航线，查看每一步的备降余量",
@@ -87,12 +90,14 @@ export default function Demo() {
   const [capture, setCapture] = useState(false);
   const [visualChoice, setVisualChoice] = useState<VisualChoice>("auto");
   const [studioAngle, setStudioAngle] = useState<StudioAngle>("orbit");
+  const [studioExplode, setStudioExplode] = useState<StudioExplode>("auto");
   const [evidenceCase, setEvidenceCase] = useState<"main" | "contrast">("main");
   const [algorithmMap, setAlgorithmMap] = useState(false);
   const evidence = cases[evidenceCase];
   const [selectedSample, setSelectedSample] = useState<number | null>(null);
   const frame = frameAt(time, confirmed);
   const visualView = visualViewAt(visualChoice, frame.time);
+  const explodeFactor = studioExplodeAt(studioExplode, frame.time);
   const explain = explanations[frame.phase];
   const sampleIndex = evidence
     ? Math.min(
@@ -246,6 +251,7 @@ export default function Demo() {
               frame={frame}
               view={visualView}
               studioAngle={studioAngle}
+              studioExplode={studioExplode}
               evidence={evidence}
             />
           )}
@@ -319,20 +325,47 @@ export default function Demo() {
               <span>
                 {frame.time >= 52
                   ? "冻结算法 ENU 场景 · 高度仅作示意"
-                  : "虚拟滨水城区 · 非真实地理坐标"}
+                  : "深圳湾艺术场景 · 非测绘坐标，不是实飞"}
               </span>
             </div>
           ) : visualView === "detail" ? (
             <div className="demo-map-bottom">
-              <span>玻璃幕墙 · 建筑立柱 · 屋顶细节</span>
-              <span>虚构滨水城区展示</span>
+              <span>艺术天际线 · 非测绘坐标</span>
+              <span>不作为算法避障依据</span>
             </div>
           ) : (
             <div className="demo-studio-caption">
               <div>
-                <small>PRODUCT VIEW / CR30</small>
+                <small>
+                  {explodeFactor > 0.15
+                    ? "EXPLODED ASSEMBLY"
+                    : "PRODUCT VIEW / CR30"}
+                </small>
                 <strong>CR30</strong>
                 <span>高精度展示模型 · 非性能或实机数据</span>
+              </div>
+              <div className="demo-studio-angles" aria-label="拆解模式">
+                <button
+                  type="button"
+                  aria-pressed={studioExplode === "auto"}
+                  onClick={() => setStudioExplode("auto")}
+                >
+                  自动拆解
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={studioExplode === "assembled"}
+                  onClick={() => setStudioExplode("assembled")}
+                >
+                  整机
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={studioExplode === "exploded"}
+                  onClick={() => setStudioExplode("exploded")}
+                >
+                  爆炸拆解
+                </button>
               </div>
               <div className="demo-studio-angles" aria-label="展示角度">
                 <button
@@ -384,6 +417,7 @@ export default function Demo() {
           <div className="demo-meter">
             <i style={{ width: `${frame.progress * 100}%` }} />
           </div>
+          <AlgorithmExplain frame={frame} />
           {evidence ? (
             <TaskEvidenceCard
               key={evidence.revision}

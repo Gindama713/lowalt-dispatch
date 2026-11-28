@@ -3,12 +3,50 @@
   z-index: 24;
   left: 20px;
   bottom: 64px;
-  width: min(380px, calc(100% - 40px));
+  width: min(392px, calc(100% - 40px));
   padding: 16px;
   border-radius: 14px;
-  max-height: 48%;
+  max-height: 54%;
   overflow: auto;
   font-size: 12px;
+}
+.real-routing-inline-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-top: 4px;
+}
+.routing-banner {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.32);
+}
+.routing-banner.conflict {
+  border-color: rgba(239, 68, 68, 0.72);
+  background: rgba(127, 29, 29, 0.28);
+}
+.routing-banner.stale,
+.routing-banner.legacy {
+  border-color: rgba(245, 158, 11, 0.65);
+  background: rgba(120, 53, 15, 0.22);
+}
+.routing-banner.comparison {
+  border-color: rgba(54, 220, 181, 0.55);
+  background: rgba(13, 74, 66, 0.22);
+}
+.routing-airspace-evidence {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-left: 3px solid #36dcb5;
+  background: rgba(15, 23, 42, 0.22);
+  border-radius: 0 7px 7px 0;
+}
+.routing-airspace-evidence code,
+.routing-banner code {
+  font-size: 11px;
+  word-break: break-all;
 }
 .real-routing strong {
   font-size: 14px;

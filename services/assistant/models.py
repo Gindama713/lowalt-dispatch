@@ -83,6 +83,8 @@ class ActiveRoute(Contract):
     frame: Literal["WGS84", "ENU"]
     source: str = Field(min_length=1, max_length=240)
     waypoints: list[tuple[float, float]] = Field(min_length=2, max_length=1000)
+    constraint_snapshot_id: str | None = Field(default=None, max_length=64)
+    constraint_digest: str | None = Field(default=None, max_length=80)
 
     @model_validator(mode="after")
     def coordinates(self):
@@ -102,6 +104,7 @@ class Context(Contract):
     selected_task_id: UUID | None = None
     route_id: str | None = Field(default="S1-01-baseline", max_length=160)
     selected_intake_id: str | None = Field(default=None, max_length=160)
+    airspace_snapshot_id: str | None = Field(default=None, max_length=64)
     active_route: ActiveRoute | None = None
     progress: float = Field(ge=0, le=1)
     telemetry_mode: Literal["demo", "live", "planning"] = "demo"

@@ -1301,3 +1301,21 @@
     animation: none;
   }
 }
+.assistant-intake-receipt {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid light-dark(#dce5ee, #334353);
+  border-radius: 10px;
+  background: light-dark(#f6f9fc, #182632);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.assistant-intake-receipt p {
+  margin: 7px 0;
+}
+.assistant-intake-receipt a {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: light-dark(#365f9a, #b8cbeb);
+}

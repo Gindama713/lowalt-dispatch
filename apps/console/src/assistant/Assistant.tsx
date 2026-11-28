@@ -515,7 +515,8 @@ export default function Assistant(props: Props) {
               前端通过本地后端调用工具。配置服务端MaaS地址、模型ID和密钥后可启用模型工具编排；密钥不进入浏览器。
             </p>
             <p>
-              当前遥测为演示源，路线只做几何预览。草稿确认只保存到任务空间。
+              遥测与规划数据会标明来源。真实地点确认后生成 AI
+              工单，并在后台规划；工单与环境判定均不产生飞控指令。
             </p>
             <code>后端：127.0.0.1:8012</code>
           </div>
@@ -710,6 +711,23 @@ export default function Assistant(props: Props) {
                   }
                 />
               )}
+              {message.result?.intake && (
+                <div className="assistant-intake-receipt">
+                  <strong>AI 工单已保存</strong>
+                  <p>
+                    {message.result.intake.origin} →{" "}
+                    {message.result.intake.destination}
+                  </p>
+                  <p>
+                    后台计算建筑与已知限制区避障路线；天气按实际路线评估，缺失参数保留未判定。
+                  </p>
+                  <a
+                    href={`/airspace?intake=${encodeURIComponent(message.result.intake.id)}`}
+                  >
+                    打开地图并查看规划进展 <ArrowRight size={13} />
+                  </a>
+                </div>
+              )}
               {message.state === "pending" && (
                 <div className="assistant-thinking">
                   <i />
@@ -747,7 +765,9 @@ export default function Assistant(props: Props) {
                         ? "项目文档"
                         : props.context.telemetry_mode === "live"
                           ? "LIVE TELEMETRY"
-                          : "DEMO CONTEXT"}
+                          : props.context.telemetry_mode === "planning"
+                            ? "任务规划证据"
+                            : "DEMO CONTEXT"}
                   </span>
                   <span>{message.result.turn_id.slice(0, 8)}</span>
                 </div>
@@ -995,6 +1015,16 @@ export default function Assistant(props: Props) {
               >
                 记录摘要
               </button>
+              {props.context.selected_intake_id && (
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void send("综合检查当前工单的禁飞区、天气、风向和备降点")
+                  }
+                >
+                  综合检查任务
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1036,6 +1066,8 @@ export default function Assistant(props: Props) {
               {busy ? (
                 <button
                   type="button"
+                  // Explicitly enabled so a reused send button cannot stay disabled.
+                  disabled={false}
                   aria-label="停止接收助手结果"
                   onClick={() => request.current?.abort()}
                 >
