@@ -309,10 +309,13 @@ class Engine:
             for item in tools.place_results
             if item.get("status") in {"ambiguous", "unresolved"}
         ]
+        place_card = None
         if failed_places and not intake_result:
             # The model sometimes answers an unrelated boilerplate instead of
-            # asking for a usable name. Make the blocker explicit.
-            text = self._place_clarification(failed_places)
+            # asking for a usable name. Build the card here so the user can
+            # still pick a campus and finish.
+            place_card = self._place_clarification(tools, turn.text)
+            text = place_card["summary"]
         if intake_result and intake_result.get("status") == "needs_clarification":
             text = intake_result["summary"]
         elif intake_result and intake_result.get("status") == "created" and not text.strip():
@@ -349,7 +352,7 @@ class Engine:
             "clarification": (
                 intake_result
                 if intake_result and intake_result.get("status") == "needs_clarification"
-                else None
+                else place_card
             ),
             "web_search": bool(turn.web_search and self.settings.provider == "maas"),
             "presentation": build_presentation(turn.text, tools.results).model_dump(mode="json"),
@@ -558,6 +561,10 @@ class Engine:
 涉及未来时间的运送/规划请求，先肯定"可以做到"并说明天气条件（需要地图定位且日期在未来16天预报窗口内），再**只问真正缺失的字段**：日期与起飞时刻、起终点、载荷、优先级中，用户已经说过的绝不再问。
 用户说"11月20日上午9点"这类没有年份的时间时，按当前年份补全并写明采用的年份，不要要求用户重复；传给 create_task_intake 的 scheduled_for 必须是带时区的完整 ISO 时刻。
 真实地名（城市/学校/机场/园区）一律用 resolve_real_place；list_places 只用于 v0 虚拟场景的 6 个 ENU 点，不得用来回答真实地点。
+resolve_real_place 返回 ambiguous 时，把 candidates 里的 2–4 个候选连名称和坐标列给用户选，不要说「识别不出来」；用户回复「选<名称>，坐标 lng,lat」后，直接把这个名称和坐标作为对应起终点继续，不要重新解析、不要再次追问。
+用户只说了简称（如「江西财经」）时，若工具给出校区候选，就让他选校区；不要用「太短」一句话打发，除非工具确实返回 unresolved 且无候选。
+resolve_real_place 返回 ambiguous 时，把 candidates 里的 2–4 个候选连名称和坐标列给用户选，不要说「识别不出来」；用户回复「选<名称>，坐标 lng,lat」后，直接把这个名称和坐标作为对应起终点继续，不要重新解析、不要再次追问。
+用户只说了简称（如「江西财经」）时，若工具给出校区候选，就让他选校区；不要用「太短」一句话打发，除非工具确实返回 unresolved 且无候选。
 只在地图选点确实是本轮用户操作结果时才把坐标填进 origin_point/destination_point；不要拿上一次会话或页面里残留的坐标去覆盖用户刚说的地名。若两者相距超过 50 km，工具会返回冲突选项，按选项追问，不要自行决定。
 按序调用resolve_real_place（起终点各一次）、get_airspace_zones，再调create_task_intake取追问清单。该工具返回needs_clarification时不要建单，直接按summary里的问题追问，不要重复调用工具。用户在后续轮次明确给出日期时刻、地图坐标、载荷和优先级时，把用户原话放进create_task_intake的text字段，并把这些值填进对应字段（scheduled_for/origin_point/destination_point/payload_kg/priority/schedule_confirmed/places_confirmed），一次调用即可建单，不要反复追问。不猜坐标、不填占位数值。
 创建工单须由用户点击结构化确认卡，模型填写的 text 或 confirmed 标记不能替代确认。确认卡请求由服务端直接处理，无需模型重新解释。
@@ -661,21 +668,86 @@ explain_verdict 只能解释已有的 evidence_id，不得重新计算。
 
 
     @staticmethod
-    def _place_clarification(items: list[dict]) -> str:
-        lines = []
-        for item in items:
-            name = item.get("name") or "该地点"
-            if item.get("status") == "ambiguous":
-                options = "；".join(
-                    f"{row['name']}（{row['point'][0]:.4f}, {row['point'][1]:.4f}）"
-                    for row in (item.get("candidates") or [])[:3]
+    def _place_clarification(tools, text: str) -> dict:
+        """Build a real confirmation card when the model stops at a bad place.
+
+        The card is deterministic: pins come from the resolver, campus options
+        carry their own coordinates, and the user can finish without another
+        model hop.
+        """
+        parsed, note = parse_schedule(text)
+        match = re.search(r"从\s*(.+?)\s*(?:送|运|寄|配送|到)", text)
+        origin_phrase = match.group(1) if match else ""
+        pins, questions, seen = [], [], set()
+        for item in tools.place_results:
+            name = item.get("name") or ""
+            field = "origin" if origin_phrase and (name in origin_phrase or origin_phrase in name) else "destination"
+            if field in seen:
+                continue
+            seen.add(field)
+            pin = {
+                "field": field,
+                "name": name,
+                "point": item.get("point"),
+                "crs": item.get("crs") or "unresolved",
+                "source": item.get("source") or "",
+                "address": item.get("address") or "",
+                "confirmed": False,
+                "note": "已解析，请核对坐标" if item.get("point") else "未解析，请选候选或地图点选",
+            }
+            pins.append(pin)
+            candidates = [row for row in (item.get("candidates") or []) if row.get("point")]
+            if item.get("status") in {"ambiguous", "unresolved"} and candidates:
+                questions.append(
+                    {
+                        "field": field,
+                        "question": f"{'起点' if field == 'origin' else '终点'}「{name}」有 "
+                        f"{len(candidates)} 个候选，选一个：",
+                        "map_pin": pin,
+                        "options": [
+                            {
+                                "label": row["name"],
+                                "value": f"选{row['name']}，坐标 {row['point'][0]:.6f},{row['point'][1]:.6f}",
+                            }
+                            for row in candidates[:4]
+                        ],
+                    }
                 )
-                lines.append(f"「{name}」有多个候选：{options}。请选一个，或写全称。")
-            else:
-                reason = item.get("address") or "没有解析出可用坐标"
-                lines.append(f"「{name}」不能作为起降点：{reason}")
+            elif not item.get("point"):
+                questions.append(
+                    {
+                        "field": field,
+                        "question": f"{'起点' if field == 'origin' else '终点'}「{name}」不能作为起降点："
+                        + (item.get("address") or "未解析"),
+                        "map_pin": pin,
+                    }
+                )
+        payload = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:公斤|千克|kg)", text, re.I)
+        priority = "P1" if re.search(r"P1|应急|紧急", text, re.I) else ("P2" if re.search(r"P2|常规", text, re.I) else None)
+        lines = []
+        for question in questions:
+            lines.append(question["question"])
+        if not questions:
+            lines.append("地点还没有可用坐标，请在地图上点选。")
         lines.append("地点确认前不建单、不猜坐标；也可以直接在地图上点选起终点。")
-        return "\n".join(lines)
+        return {
+            "status": "needs_clarification",
+            "source": "地点候选（服务端生成）",
+            "questions": questions,
+            "map_pins": pins,
+            "draft_values": {
+                "scheduled_for": parsed,
+                "payload_kg": float(payload.group(1)) if payload else None,
+                "priority": priority,
+            },
+            "weather_feasibility": {
+                "status": "needs_map_pin" if any(not pin["point"] for pin in pins) else "available_if_date_in_window",
+                "note": "先确认起终点，再按起飞时刻取预报。",
+            },
+            "summary": "\n".join(lines),
+            "is_simulated": True,
+            "dispatch_enabled": False,
+        }
 
     @staticmethod
     def _partial_answer(tools, reason="本轮达到查询上限") -> str:

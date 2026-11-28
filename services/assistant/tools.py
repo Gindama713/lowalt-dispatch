@@ -990,8 +990,29 @@ class Toolset:
                 # the generic "is this the place?" on top of it.
                 continue
             if not explicit_confirm or not item.get("point"):
-                questions.append(
-                    {
+                candidates = [
+                    candidate
+                    for candidate in (item.get("candidates") or [])
+                    if candidate.get("point")
+                ]
+                if not item.get("point") and candidates:
+                    question = {
+                        "field": field,
+                        "question": f"{label}「{item['name']}」有 {len(candidates)} 个候选，选一个：",
+                        "map_pin": pin,
+                        "options": [
+                            {
+                                "label": candidate["name"],
+                                "value": (
+                                    f"选{candidate['name']}，坐标 "
+                                    f"{candidate['point'][0]:.6f},{candidate['point'][1]:.6f}"
+                                ),
+                            }
+                            for candidate in candidates[:4]
+                        ],
+                    }
+                else:
+                    question = {
                         "field": field,
                         "question": (
                             f"{label}：{item['name']}（{item['point'][0]:.6f}, {item['point'][1]:.6f}）"
@@ -1000,7 +1021,7 @@ class Toolset:
                         ),
                         "map_pin": pin,
                     }
-                )
+                questions.append(question)
         for field in ("origin", "destination"):
             if f"{field}_question" in conflicts:
                 questions.append(conflicts[f"{field}_question"])

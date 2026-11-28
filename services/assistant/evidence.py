@@ -852,6 +852,50 @@ def resolve_place(
         rows, provider = geocode.lookup(name, 5)
         if rows:
             decision = place_match.resolve(name, rows)
+            full_university = len(place_match.normalize(name)) >= 6 and "大学" in name
+            if full_university or decision.get("status") != "ok" or decision.get("confidence") != "high":
+                extra = geocode.overpass_universities(name)
+                if extra:
+                    if full_university:
+                        plain = [
+                            row
+                            for row in extra
+                            if place_match.normalize(row["name"]) == place_match.normalize(name)
+                        ]
+                        campuses = [
+                            row
+                            for row in extra
+                            if "amenity/university" in (row.get("kind") or "")
+                            and "校区" in row["name"]
+                        ]
+                        if not plain and len(campuses) >= 2:
+                            return {
+                                "status": "ambiguous",
+                                "name": name,
+                                "point": None,
+                                "crs": "unresolved",
+                                "source": provider,
+                                "address": "没有唯一主校区，请选择校区；未自动采用第一条。",
+                                "is_simulated": False,
+                                "candidates": [
+                                    {
+                                        "name": row["name"],
+                                        "point": row["point"],
+                                        "address": row.get("address", ""),
+                                    }
+                                    for row in campuses[:4]
+                                ],
+                            }
+                    seen = {
+                        (row["name"], round(row["point"][0], 5), round(row["point"][1], 5))
+                        for row in rows
+                    }
+                    rows = rows + [
+                        row
+                        for row in extra
+                        if (row["name"], round(row["point"][0], 5), round(row["point"][1], 5)) not in seen
+                    ]
+                    decision = place_match.resolve(name, rows)
             if decision["status"] == "ok":
                 best = decision["best"]
                 return {

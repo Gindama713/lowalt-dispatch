@@ -601,3 +601,51 @@ def test_intake_overview_returns_real_chart_series(tmp_path, monkeypatch):
     assert data["latest_route"]["profile"][0]["value"] == 0
     assert data["latest_route"]["profile"][-1]["value"] > 0
     assert {item["value"] for item in data["payloads"]} == {3.0, 1.5}
+
+
+def test_ambiguous_place_offers_campus_options_instead_of_dead_end(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "intake_store", IntakeStore(root=tmp_path / "intakes"))
+    monkeypatch.setattr(
+        tools.evidence,
+        "resolve_place",
+        lambda name, **kwargs: (
+            {
+                "status": "ok",
+                "name": "南昌大学",
+                "point": [115.7931, 28.6572],
+                "crs": "EPSG:4326",
+                "source": "test-stub",
+                "is_simulated": False,
+            }
+            if "南昌大学" in name
+            else {
+                "status": "ambiguous",
+                "name": name,
+                "point": None,
+                "crs": "unresolved",
+                "source": "test-stub",
+                "is_simulated": False,
+                "candidates": [
+                    {"name": "江西财经大学蛟桥校区", "point": [115.8502, 28.7432]},
+                    {"name": "江西财经大学青科园校区", "point": [115.8125, 28.7359]},
+                    {"name": "江西财经大学青山南路校区", "point": [115.9121, 28.7076]},
+                ],
+            }
+        ),
+    )
+    toolset = tools.Toolset(make_turn(), require_confirmation=True)
+    result = toolset.execute(
+        "create_task_intake",
+        {
+            "text": "从南昌大学送到江西财经",
+            "origin": "南昌大学",
+            "destination": "江西财经",
+            "payload_kg": 2.0,
+            "priority": "P2",
+        },
+    )
+    assert result["status"] == "needs_clarification"
+    question = next(item for item in result["questions"] if item["field"] == "destination")
+    assert len(question["options"]) == 3
+    assert "蛟桥校区" in question["options"][0]["label"]
+    assert tools.intake_store.list() == []

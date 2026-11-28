@@ -7,6 +7,7 @@ order and the first non-empty result wins; failures never raise to callers.
 from __future__ import annotations
 
 import os
+import re
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -16,12 +17,21 @@ import httpx
 from services.assistant import amap
 
 PHOTON = "https://photon.komoot.io/api/"
+# Campus fallback area. Photon often omits the main campus of a Chinese
+# university; Overpass finds the amenity=university polygon inside this box.
+# Override with AERIS_PLACE_BBOX="south,west,north,east" for another city.
+DEFAULT_BBOX = "28.40,115.60,29.00,116.20"
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "Lowalt-Aeris-Console/0.2 (https://github.com/Gindama713/lowalt-dispatch)"
 
 
-def _valid(lng: float, lat: float) -> bool:
-    return -180 <= lng <= 180 and -85.0511 <= lat <= 85.0511
+def _valid(lng, lat) -> bool:
+    return (
+        isinstance(lng, (int, float))
+        and isinstance(lat, (int, float))
+        and -180 <= lng <= 180
+        and -85.0511 <= lat <= 85.0511
+    )
 
 
 def _row(name: str, address: str, lng: float, lat: float, kind: str = "") -> dict:
@@ -68,6 +78,55 @@ def _photon(query: str, limit: int) -> list[dict]:
         )
         rows.append(_row(name, address, lng, lat, kind))
     return rows
+
+
+def overpass_universities(name: str, limit: int = 8) -> list[dict]:
+    """Find university/college polygons by name inside the configured box."""
+    if len(name.strip()) < 4:
+        return []
+    raw = os.getenv("AERIS_PLACE_BBOX", DEFAULT_BBOX)
+    try:
+        south, west, north, east = (float(part) for part in raw.split(","))
+    except ValueError:
+        south, west, north, east = 28.40, 115.60, 29.00, 116.20
+    safe = re.sub(r'["\\]', "", name)[:60]
+    query = (
+        '[out:json][timeout:25];'
+        f'nwr["amenity"~"^(university|college)$"]["name"~"{safe}"]'
+        f"({south},{west},{north},{east});out center tags {limit};"
+    )
+    from services.assistant.osm_obstacles import ENDPOINTS
+
+    for endpoint in ENDPOINTS:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(18, connect=5), trust_env=False,
+                              headers={"User-Agent": USER_AGENT}) as client:
+                response = client.post(endpoint, data={"data": query})
+                response.raise_for_status()
+                payload = response.json()
+        except Exception:
+            continue
+        rows = []
+        for element in payload.get("elements", [])[:limit]:
+            tags = element.get("tags") or {}
+            center = element.get("center") or {}
+            lng, lat = center.get("lon"), center.get("lat")
+            if not _valid(lng, lat):
+                continue
+            address = " ".join(
+                str(tags.get(key) or "") for key in ("state", "city", "district", "street")
+            ).strip()
+            rows.append(
+                _row(
+                    str(tags.get("name") or name),
+                    address or str(tags.get("name") or name),
+                    float(lng),
+                    float(lat),
+                    f"amenity/{tags.get('amenity', 'university')}",
+                )
+            )
+        return rows
+    return []
 
 
 def _nominatim(query: str, limit: int) -> list[dict]:

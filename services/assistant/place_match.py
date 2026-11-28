@@ -24,12 +24,14 @@ EXACT = 99.0
 
 _POI = re.compile(r"(东门|西门|南门|北门|大门|门|楼|馆|站|停车场|食堂|宿舍|操场|广场)$")
 _BRACKETS = re.compile(r"[（(][^）)]*[）)]")
+_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u202a-\u202e\ufeff]")
 
 
 def normalize(name: str) -> str:
     # Keep the text inside brackets: "江西农业大学(东区)" is a different place
     # from the main campus, not the same name with decoration.
-    value = (name or "").strip().replace("（", "(").replace("）", ")")
+    value = _ZERO_WIDTH.sub("", (name or "").strip())
+    value = value.replace("（", "(").replace("）", ")")
     return re.sub(r"\s+", "", value)
 
 
@@ -48,6 +50,17 @@ def score(query: str, candidate: str, kind: str = "") -> float:
         return 0.0
     if any(part in (kind or "") for part in UNFIT):
         return 0.0
+    bonus = 0.0
+    if "amenity/university" in (kind or ""):
+        bonus = 18.0
+    elif "amenity/college" in (kind or ""):
+        bonus = 8.0
+    elif "amenity/school" in (kind or ""):
+        bonus = 4.0
+    elif "landuse/residential" in (kind or ""):
+        bonus = -10.0
+    elif "building" in (kind or ""):
+        bonus = -8.0
     if q == c:
         return 100.0
     if c.startswith(q):
@@ -62,7 +75,8 @@ def score(query: str, candidate: str, kind: str = "") -> float:
             return 0.0
         base = 20.0 * overlap / max(len(set(q)), 1)
     # A long tail ("…科技学院（共青校区）") is less likely to be the named place.
-    return round(max(0.0, base - min(8.0, max(0, len(c) - len(q)) * 0.4)), 1)
+    base = base - min(8.0, max(0, len(c) - len(q)) * 0.4) + bonus
+    return round(max(0.0, min(100.0, base)), 1)
 
 
 def _row(item: dict, matched: str, confidence: str) -> dict:
@@ -73,6 +87,37 @@ def _row(item: dict, matched: str, confidence: str) -> dict:
         "matched": matched,
         "confidence": confidence,
     }
+
+
+def main_campus(query: str, rows: list[dict]) -> dict | None:
+    """Pick the university polygon for a full Chinese university name.
+
+    Photon often returns a dormitory, hospital or another city's campus first.
+    Overpass adds the real amenity=university polygon; when the query is a full
+    name, that polygon wins over sub-entities regardless of string length.
+    """
+    q = normalize(query)
+    if len(q) < 6 or "大学" not in q:
+        return None
+    candidates = [
+        item
+        for item in rows
+        if "amenity/university" in (item.get("kind") or "")
+        and normalize(item.get("name", "")).startswith(q)
+        and item.get("point")
+    ]
+    if not candidates:
+        return None
+    for item in candidates:
+        if normalize(item["name"]) == q:
+            return item
+    for item in candidates:
+        if re.match(rf"^{re.escape(q)}\(.+\)$", normalize(item["name"])):
+            return item
+    for item in candidates:
+        if re.match(rf"^{re.escape(q)}[\sA-Za-z].*$", item.get("name", "")):
+            return item
+    return None
 
 
 def resolve(query: str, rows: list[dict]) -> dict:
@@ -103,12 +148,24 @@ def resolve(query: str, rows: list[dict]) -> dict:
         if value >= STRONG_SCORE
         and value >= best_score - 8
         and CLUSTER_M < distance_m(best["point"], item["point"]) <= VARIANT_M
+        and not (
+            "amenity/school" in (item.get("kind") or "")
+            and "校区" not in item.get("name", "")
+        )
     ]
-    exact = best_score >= EXACT
+    q = normalize(query)
+    exact = normalize(best.get("name", "")) == q
     weak = best_score < STRONG_SCORE and len([1 for value, _ in ranked if value > 0]) >= 2
     ambiguous = (not exact) and (bool(variants) or weak)
-
-    if len(normalize(query)) <= 4 and best_score < EXACT:
+    education = any(part in (best.get("kind") or "") for part in ("university", "college", "school"))
+    abbreviated = (
+        not exact
+        and len(q) >= 4
+        and best_score >= 84
+        and education
+        and normalize(best.get("name", "")).startswith(q)
+    )
+    if len(q) <= 3 and not exact:
         return {
             "status": "unresolved",
             "candidates": [],
@@ -116,6 +173,58 @@ def resolve(query: str, rows: list[dict]) -> dict:
                 f"「{query}」太短，检索首条是「{best['name']}」，可能不是你要的地方。"
                 "请补城市或写全称；短名称不当坐标使用。"
             ),
+        }
+    main = main_campus(query, rows)
+    if main is not None and not exact:
+        return {
+            "status": "ok",
+            "best": main,
+            "score": 100.0,
+            "confidence": "high",
+            "candidates": [_row(main, "main_campus", "high")],
+            "alternatives": [],
+            "note": f"按主校区「{main['name']}」定位，请核对坐标。",
+        }
+    if not exact:
+        bracketed = [
+            item
+            for value, item in ranked
+            if re.match(rf"^{re.escape(q)}\(.+\)$", normalize(item.get("name", "")))
+            and any(part in (item.get("kind") or "") for part in ("university", "college"))
+        ]
+        if len(bracketed) == 1:
+            best = bracketed[0]
+            return {
+                "status": "ok",
+                "best": best,
+                "score": 100.0,
+                "confidence": "high",
+                "candidates": [_row(best, "main_campus", "high")],
+                "alternatives": [],
+                "note": f"按主校区「{best['name']}」定位，请核对坐标。",
+            }
+    if abbreviated:
+        campuses = [
+            item
+            for value, item in ranked
+            if value >= best_score - 12
+            and any(part in (item.get("kind") or "") for part in ("university", "college", "school"))
+            and distance_m(best["point"], item["point"]) <= 10_000
+        ]
+        if len(campuses) > 1:
+            return {
+                "status": "ambiguous",
+                "candidates": [_row(item, "campus", "medium") for item in campuses[:4]],
+                "note": f"「{query}」对应多所/多个校区，请选一个；未自动采用第一条。",
+            }
+        return {
+            "status": "ok",
+            "best": best,
+            "score": best_score,
+            "confidence": "medium",
+            "candidates": [_row(best, "abbreviation", "medium")],
+            "alternatives": [],
+            "note": f"按简称匹配到「{best['name']}」，请核对坐标。",
         }
     if _POI.search(query) and not _POI.search(best.get("name", "")):
         return {

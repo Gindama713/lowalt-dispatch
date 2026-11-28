@@ -74,6 +74,23 @@ export function ClarificationCard({ data, busy, onConfirm }: Props) {
     weight <= 100 &&
     !busy;
 
+  const chooseOption = (
+    field: string,
+    label: string,
+    value: string,
+  ): boolean => {
+    if (field !== "origin" && field !== "destination") return false;
+    const match = value.match(/坐标\s*([\d.]+)\s*,\s*([\d.]+)/);
+    if (!match) return false;
+    applyPlace(field, {
+      name: label,
+      point: [Number(match[1]), Number(match[2])],
+      source: "map_click",
+      capturedAt: new Date().toISOString(),
+    });
+    return true;
+  };
+
   const confirmPin = (pin: (typeof pins)[number]) => {
     if (!pin.point) return;
     applyPlace(pin.field === "origin" ? "origin" : "destination", {
@@ -135,7 +152,11 @@ export function ClarificationCard({ data, busy, onConfirm }: Props) {
                     key={option.label}
                     type="button"
                     disabled={busy}
-                    onClick={() => onConfirm(option.value)}
+                    onClick={() => {
+                      if (chooseOption(item.field, option.label, option.value))
+                        return;
+                      onConfirm(option.value);
+                    }}
                   >
                     {option.label}
                   </button>
