@@ -1,0 +1,293 @@
+/* Full-viewport CR30 318-part exploded backdrop behind desktop UI — zero interaction blocking */
+.drone-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse 86% 68% at 52% 46%,
+    #dbe9f8 0%,
+    #eaf2fb 52%,
+    #f3f7fc 100%
+  );
+}
+
+:root[data-theme="dark"] .drone-bg-layer,
+html:has(.aeris-demo) .drone-bg-layer {
+  background: radial-gradient(
+    ellipse 88% 66% at 50% 42%,
+    #112a3e 0%,
+    #091724 56%,
+    #050d16 100%
+  );
+}
+
+.drone-bg-layer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none !important;
+  opacity: 0.72;
+  transition: opacity 0.3s ease;
+}
+
+:root[data-theme="dark"] .drone-bg-layer canvas,
+html:has(.aeris-demo) .drone-bg-layer canvas {
+  opacity: 0.9;
+}
+
+/* Ensure all primary page trees render cleanly above the fixed 3D backdrop */
+html[data-drone-bg="on"] #root > .aeris-home,
+html[data-drone-bg="on"] #root > .app,
+html[data-drone-bg="on"] #root > .p-shell,
+html[data-drone-bg="on"] #root > .p-auth,
+html[data-drone-bg="on"] #root > .aeris-demo {
+  position: relative;
+  z-index: 1;
+}
+
+/* Light-mode glassmorphic layering so the rotating & zooming CR30 shines through without hurting contrast */
+html[data-drone-bg="on"],
+html[data-drone-bg="on"] body {
+  background: transparent !important;
+}
+
+html[data-drone-bg="on"] .aeris-home {
+  background: transparent !important;
+}
+
+html[data-drone-bg="on"] .l-header {
+  background: rgba(255, 255, 255, 0.74) !important;
+  backdrop-filter: blur(12px);
+}
+
+html[data-drone-bg="on"] .l-hero {
+  background: linear-gradient(
+    108deg,
+    rgba(238, 246, 255, 0.34) 0%,
+    rgba(239, 243, 255, 0.24) 36%,
+    rgba(196, 206, 246, 0.24) 58%,
+    rgba(65, 92, 158, 0.36) 100%
+  ) !important;
+}
+
+html[data-drone-bg="on"] .l-strip,
+html[data-drone-bg="on"] .l-section,
+html[data-drone-bg="on"] .l-band,
+html[data-drone-bg="on"] .l-footer {
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(8px);
+}
+
+html[data-drone-bg="on"] .l-card,
+html[data-drone-bg="on"] .l-cap-card,
+html[data-drone-bg="on"] .l-scene-card {
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(10px);
+}
+
+/* Dispatch Console (/console, /airspace, /fleet) glassmorphic integration */
+html[data-drone-bg="on"] .app,
+html[data-drone-bg="on"] .main {
+  background: transparent !important;
+}
+
+html[data-drone-bg="on"] .topbar,
+html[data-drone-bg="on"] .rail {
+  background: rgba(246, 249, 253, 0.68);
+  backdrop-filter: blur(12px);
+}
+
+html[data-drone-bg="on"] .summary-strip {
+  background: linear-gradient(
+    105deg,
+    rgba(248, 251, 255, 0.64),
+    rgba(244, 248, 253, 0.6)
+  );
+  backdrop-filter: blur(10px);
+}
+
+html[data-drone-bg="on"] .panel {
+  background: rgba(255, 255, 255, 0.66);
+  backdrop-filter: blur(10px);
+}
+
+html[data-drone-bg="on"] .playback,
+html[data-drone-bg="on"] .map-toolbar {
+  background: rgba(246, 249, 253, 0.72);
+}
+
+/* Portal workspace & login pages */
+html[data-drone-bg="on"] .p-shell,
+html[data-drone-bg="on"] .p-main,
+html[data-drone-bg="on"] .p-auth {
+  background: transparent !important;
+}
+
+html[data-drone-bg="on"] .p-sidebar,
+html[data-drone-bg="on"] .p-topbar,
+html[data-drone-bg="on"] .p-card,
+html[data-drone-bg="on"] .p-stat,
+html[data-drone-bg="on"] .p-auth-card,
+html[data-drone-bg="on"] .p-auth > header {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+html[data-drone-bg="on"] .p-auth-form {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(188, 208, 232, 0.52);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 14px 40px rgba(22, 50, 82, 0.08);
+}
+
+/* Dark theme & /demo glassmorphic integration */
+html[data-theme="dark"][data-drone-bg="on"] .l-header,
+html[data-theme="dark"][data-drone-bg="on"] .topbar,
+html[data-theme="dark"][data-drone-bg="on"] .rail,
+html[data-theme="dark"][data-drone-bg="on"] .panel,
+html[data-theme="dark"][data-drone-bg="on"] .summary-strip,
+html[data-theme="dark"][data-drone-bg="on"] .p-sidebar,
+html[data-theme="dark"][data-drone-bg="on"] .p-topbar,
+html[data-theme="dark"][data-drone-bg="on"] .p-card,
+html[data-theme="dark"][data-drone-bg="on"] .p-stat,
+html[data-theme="dark"][data-drone-bg="on"] .p-auth-card,
+html[data-theme="dark"][data-drone-bg="on"] .p-auth-form,
+html[data-theme="dark"][data-drone-bg="on"] .p-auth > header,
+html[data-theme="dark"][data-drone-bg="on"] .l-section,
+html[data-theme="dark"][data-drone-bg="on"] .l-strip,
+html[data-theme="dark"][data-drone-bg="on"] .l-footer {
+  background: rgba(11, 22, 34, 0.64) !important;
+  backdrop-filter: blur(12px);
+}
+
+html[data-theme="dark"][data-drone-bg="on"] .l-hero {
+  background: linear-gradient(
+    108deg,
+    rgba(7, 17, 29, 0.34) 0%,
+    rgba(14, 30, 52, 0.24) 52%,
+    rgba(22, 42, 78, 0.34) 100%
+  ) !important;
+}
+
+html[data-theme="dark"][data-drone-bg="on"] .l-hero:before {
+  opacity: 0.4;
+}
+
+html[data-drone-bg="on"] .aeris-demo {
+  background: radial-gradient(
+    ellipse at 48% 20%,
+    rgba(20, 38, 52, 0.32),
+    rgba(8, 15, 24, 0.48) 64%
+  ) !important;
+}
+
+html[data-drone-bg="on"] .demo-card,
+html[data-drone-bg="on"] .demo-timeline,
+html[data-drone-bg="on"] .demo-algo {
+  background: rgba(13, 27, 40, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+/* Unobtrusive floating HUD pill — positioned in empty margin per route so it never covers content */
+.drone-bg-pill {
+  position: fixed;
+  z-index: 40;
+  right: 18px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(35, 114, 178, 0.28);
+  background: rgba(248, 252, 255, 0.86);
+  backdrop-filter: blur(12px);
+  color: #1c3a56;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 20px rgba(15, 42, 72, 0.12);
+  max-width: calc(100vw - 28px);
+}
+
+.drone-bg-pill.is-demo-route {
+  top: 15px;
+  bottom: auto;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+html:has(.app) .drone-bg-pill {
+  top: 19px;
+  bottom: auto;
+  right: auto;
+  left: 62%;
+  transform: translateX(-50%);
+}
+
+html:has(.aeris-demo.demo-capture) .drone-bg-pill {
+  display: none;
+}
+
+:root[data-theme="dark"] .drone-bg-pill,
+.drone-bg-pill.is-demo-route {
+  border-color: rgba(111, 225, 222, 0.3);
+  background: rgba(9, 22, 34, 0.82);
+  color: #d6eef8;
+  box-shadow: 0 8px 24px rgba(2, 10, 18, 0.35);
+}
+
+.drone-bg-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+
+.drone-bg-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drone-bg-btn {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(35, 114, 178, 0.28);
+  background: rgba(22, 116, 230, 0.08);
+  color: #1659a4;
+  font-size: 10.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.drone-bg-btn:hover {
+  background: rgba(22, 116, 230, 0.16);
+}
+
+:root[data-theme="dark"] .drone-bg-btn,
+.drone-bg-pill.is-demo-route .drone-bg-btn {
+  border-color: rgba(111, 225, 222, 0.32);
+  background: rgba(111, 225, 222, 0.12);
+  color: #8eeef2;
+}
+
+:root[data-theme="dark"] .drone-bg-btn:hover,
+.drone-bg-pill.is-demo-route .drone-bg-btn:hover {
+  background: rgba(111, 225, 222, 0.22);
+}
+
+@media (max-width: 640px) {
+  .drone-bg-text {
+    display: none;
+  }
+}

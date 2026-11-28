@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+export PATH="$HOME/.local/node/bin:$HOME/.local/bin:$PATH"
+REPO="/Users/cr/Desktop/华为ict/lowalt-dispatch"
+cd "$REPO/apps/console"
+echo "[AERIS] Starting full-stack dev server: Frontend HMR http://127.0.0.1:5174 + Backend API http://127.0.0.1:8012"
+exec npm run dev:all
