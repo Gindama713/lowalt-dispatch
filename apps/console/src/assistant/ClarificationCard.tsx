@@ -120,7 +120,7 @@ export function ClarificationCard({ data, busy, onConfirm }: Props) {
       <header>
         <Clock3 size={14} />
         <strong>待确认 · AI 任务工单</strong>
-        <span>问全了才建单</span>
+        <span>核对后建单</span>
       </header>
       <p className="intake-clarify-lead">{data.summary.split("\n")[0]}</p>
       <ol className="intake-clarify-questions">

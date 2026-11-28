@@ -24,11 +24,12 @@ def _valid(lng: float, lat: float) -> bool:
     return -180 <= lng <= 180 and -85.0511 <= lat <= 85.0511
 
 
-def _row(name: str, address: str, lng: float, lat: float) -> dict:
+def _row(name: str, address: str, lng: float, lat: float, kind: str = "") -> dict:
     return {
         "name": name[:200],
         "address": address[:200],
         "point": [lng, lat],
+        "kind": kind,
         "source": "osm_search",
         "capturedAt": datetime.now(UTC).isoformat(),
     }
@@ -62,7 +63,10 @@ def _photon(query: str, limit: int) -> list[dict]:
             ).strip()
             or name
         )
-        rows.append(_row(name, address, lng, lat))
+        kind = "/".join(
+            part for part in (properties.get("osm_key"), properties.get("osm_value")) if part
+        )
+        rows.append(_row(name, address, lng, lat, kind))
     return rows
 
 

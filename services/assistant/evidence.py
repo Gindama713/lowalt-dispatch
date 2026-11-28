@@ -18,7 +18,7 @@ from pathlib import Path
 
 import httpx
 
-from services.assistant import geocode
+from services.assistant import geocode, place_match
 
 ROOT = Path(__file__).resolve().parents[2]
 OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
@@ -851,26 +851,39 @@ def resolve_place(
     try:
         rows, provider = geocode.lookup(name, 5)
         if rows:
-            if len(rows) > 1:
+            decision = place_match.resolve(name, rows)
+            if decision["status"] == "ok":
+                best = decision["best"]
                 return {
-                    "status": "ambiguous",
-                    "name": name,
-                    "point": None,
-                    "crs": "unresolved",
+                    "status": "ok",
+                    "name": best["name"],
+                    "point": list(best["point"]),
+                    "crs": "EPSG:4326",
                     "source": provider,
-                    "address": "存在多个候选，请选择具体地点并确认实际起降点；未自动采用第一条。",
+                    "address": best.get("address", ""),
                     "is_simulated": False,
-                    "candidates": rows,
+                    "match": {
+                        "query": name,
+                        "score": decision["score"],
+                        "confidence": decision["confidence"],
+                    },
+                    "candidates": decision.get("candidates", []),
+                    "alternatives": decision.get("alternatives", []),
+                    "note": (
+                        "按名称精确匹配选中；如实际起降点在别的校区，请在确认卡里改。"
+                        if decision["confidence"] == "high"
+                        else "名称不是完全一致，请核对确认卡里的坐标。"
+                    ),
                 }
-            first = rows[0]
             return {
-                "status": "ok",
-                "name": first["name"],
-                "point": list(first["point"]),
-                "crs": "EPSG:4326",
+                "status": decision["status"],
+                "name": name,
+                "point": None,
+                "crs": "unresolved",
                 "source": provider,
-                "address": first.get("address", ""),
+                "address": decision.get("note", ""),
                 "is_simulated": False,
+                "candidates": decision.get("candidates", []),
             }
     except Exception:
         pass

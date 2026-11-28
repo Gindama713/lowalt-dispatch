@@ -304,6 +304,15 @@ class Engine:
             else:
                 text, task_status = task_status["reason"], None
         intake_result = tools.results.get("create_task_intake")
+        failed_places = [
+            item
+            for item in tools.place_results
+            if item.get("status") in {"ambiguous", "unresolved"}
+        ]
+        if failed_places and not intake_result:
+            # The model sometimes answers an unrelated boilerplate instead of
+            # asking for a usable name. Make the blocker explicit.
+            text = self._place_clarification(failed_places)
         if intake_result and intake_result.get("status") == "needs_clarification":
             text = intake_result["summary"]
         elif intake_result and intake_result.get("status") == "created" and not text.strip():
@@ -649,6 +658,24 @@ explain_verdict 只能解释已有的 evidence_id，不得重新计算。
                     # let Engine.run render the structured result deterministically.
                     return ""
         return self._partial_answer(tools)
+
+
+    @staticmethod
+    def _place_clarification(items: list[dict]) -> str:
+        lines = []
+        for item in items:
+            name = item.get("name") or "该地点"
+            if item.get("status") == "ambiguous":
+                options = "；".join(
+                    f"{row['name']}（{row['point'][0]:.4f}, {row['point'][1]:.4f}）"
+                    for row in (item.get("candidates") or [])[:3]
+                )
+                lines.append(f"「{name}」有多个候选：{options}。请选一个，或写全称。")
+            else:
+                reason = item.get("address") or "没有解析出可用坐标"
+                lines.append(f"「{name}」不能作为起降点：{reason}")
+        lines.append("地点确认前不建单、不猜坐标；也可以直接在地图上点选起终点。")
+        return "\n".join(lines)
 
     @staticmethod
     def _partial_answer(tools, reason="本轮达到查询上限") -> str:

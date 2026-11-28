@@ -993,7 +993,11 @@ class Toolset:
                 questions.append(
                     {
                         "field": field,
-                        "question": f"{label}是「{item['name']}」吗？请确认名称并在地图上确认位置。",
+                        "question": (
+                            f"{label}：{item['name']}（{item['point'][0]:.6f}, {item['point'][1]:.6f}）"
+                            if item.get("point")
+                            else f"{label}「{item['name']}」还没解析出坐标，请在地图上点选。"
+                        ),
                         "map_pin": pin,
                     }
                 )
@@ -1006,8 +1010,8 @@ class Toolset:
                 schedule_question = {
                     "field": "scheduled_for",
                     "question": (
-                        f"时间我暂按 {args.scheduled_for} 理解（{args.schedule_note}）。"
-                        "请确认具体日期与起飞时刻。"
+                        f"时间：{args.scheduled_for}"
+                        + (f"（{args.schedule_note}）" if args.schedule_note else "")
                     ),
                     "current": args.scheduled_for,
                     "options": [
@@ -1048,26 +1052,34 @@ class Toolset:
         )
 
         if questions:
-            opening = (
-                "可以，完全可以做到（该时段在 16 天预报窗口内时可取天气）。"
-                if point
-                else "可以，完全可以做到（前提是先拿到地图定位；天气预报最多覆盖未来 16 天）。"
-            )
-            lines = [opening, "在生成任务和推荐路线之前，请把下面几项确认一下："]
-            lines += [f"{index}. {item['question']}" for index, item in enumerate(questions, 1)]
-            lines.append(
-                "地图定位："
-                + "；".join(
-                    f"{pin['field']}={pin['name']} "
-                    + (
-                        f"[{pin['point'][0]}, {pin['point'][1]}] {pin['crs']}"
-                        if pin["point"]
-                        else "未定位，请在地图上点选"
-                    )
-                    for pin in map_pins
+            lines = []
+            if origin.get("point") and destination.get("point"):
+                lines.append(
+                    f"已解析：{origin['name']}（{origin['point'][0]:.6f}, {origin['point'][1]:.6f}）"
+                    f" → {destination['name']}（{destination['point'][0]:.6f}, {destination['point'][1]:.6f}）。"
                 )
-            )
-            lines.append("确认后我再建任务工单、取该时段预报并给出几何路线预览；现在不建单、不猜任何数值。")
+            else:
+                lines.append("地点还没完全解析，先看下面的地图定位。")
+            if args.scheduled_for:
+                lines.append(
+                    f"时间：{args.scheduled_for}"
+                    + (f"（{args.schedule_note}）" if args.schedule_note else "")
+                )
+            facts = []
+            if args.payload_kg is not None:
+                facts.append(f"载荷 {args.payload_kg} kg")
+            if args.priority:
+                facts.append(args.priority)
+            if facts:
+                lines.append(" · ".join(facts))
+            missing = [
+                name
+                for name, value in (("载荷", args.payload_kg), ("优先级", args.priority))
+                if value is None
+            ]
+            if missing:
+                lines.append("还差：" + "、".join(missing) + "，补一下即可建单。")
+            lines.append("地点或时间不对，直接在下面卡片里改；没问题就点「确认并创建任务工单」。")
             self.terminal = True
             return {
                 "status": "needs_clarification",

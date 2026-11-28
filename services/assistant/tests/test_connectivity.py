@@ -133,7 +133,8 @@ def test_saved_intake_keeps_route_contract_and_scene(monkeypatch):
     assert stored["planning_result"] == response
 
 
-def test_ambiguous_airport_never_selects_the_first_hotel(monkeypatch):
+def test_airport_name_beats_a_nearby_hotel_but_keeps_it_as_alternative(monkeypatch):
+    """An exact name match wins; a different entity is never selected just by rank."""
     lookup = Mock(
         return_value=(
             [{"name": "机场酒店", "point": [121.32, 31.19]}, {"name": "虹桥机场", "point": [121.33, 31.19]}],
@@ -142,8 +143,9 @@ def test_ambiguous_airport_never_selects_the_first_hotel(monkeypatch):
     )
     monkeypatch.setattr(geocode, "lookup", lookup)
     result = evidence.resolve_place("虹桥机场")
-    assert result["status"] == "ambiguous" and result["point"] is None
-    assert len(result["candidates"]) == 2
+    assert result["status"] == "ok" and result["point"] == [121.33, 31.19]
+    assert result["match"]["confidence"] == "high"
+    assert any(item["name"] == "机场酒店" for item in result["alternatives"])
     lookup.assert_called_once_with("虹桥机场", 5)
 
 
@@ -178,3 +180,49 @@ def test_invalid_region_coordinates_are_validation_errors(coordinates):
         navigation.AvoidRegion(
             id="x", kind="restricted", source="test", geometry={"type": "Polygon", "coordinates": coordinates}
         )
+
+def test_exact_campus_name_wins_over_other_campuses():
+    from services.assistant import place_match
+
+    rows = [
+        {"name": "江西农业大学", "point": [115.8319, 28.7649]},
+        {"name": "江西农业大学(东区)", "point": [115.8478, 28.7555]},
+        {"name": "江西农业大学校办", "point": [115.8294, 28.7617]},
+    ]
+    result = place_match.resolve("江西农业大学", rows)
+    assert result["status"] == "ok"
+    assert result["best"]["name"] == "江西农业大学"
+    assert result["confidence"] == "high"
+    assert any(item["name"] == "江西农业大学(东区)" for item in result["alternatives"])
+
+
+def test_gate_request_never_uses_the_campus_centroid():
+    from services.assistant import place_match
+
+    rows = [{"name": "江西农业大学", "point": [115.8319, 28.7649]}]
+    result = place_match.resolve("江西农业大学东门", rows)
+    assert result["status"] == "unresolved"
+    assert result["candidates"] and result["candidates"][0]["matched"] == "parent"
+    assert "没有该门" in result["note"]
+
+
+def test_alias_without_exact_match_stays_ambiguous():
+    from services.assistant import place_match
+
+    rows = [
+        {"name": "江西农业大学", "point": [115.8319, 28.7649]},
+        {"name": "江西农业大学(东区)", "point": [115.8478, 28.7555]},
+    ]
+    result = place_match.resolve("江西农学院", rows)
+    assert result["status"] == "ambiguous"
+    assert len(result["candidates"]) == 2
+
+
+def test_short_alias_is_never_turned_into_a_far_away_point():
+    from services.assistant import place_match
+
+    rows = [{"name": "农大屯", "point": [124.78, 45.32], "kind": "place/suburb"}]
+    result = place_match.resolve("农大", rows)
+    assert result["status"] == "unresolved"
+    assert result["candidates"] == []
+    assert "太短" in result["note"]

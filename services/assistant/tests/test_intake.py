@@ -234,9 +234,9 @@ def test_engine_asks_full_clarification_before_creating(tmp_path, monkeypatch):
     assert "resolve_real_place" in names
     assert "get_airspace_zones" in names
     assert "create_task_intake" in names
-    assert "可以，完全可以做到" in result["text"]
-    for expected in ("请确认具体日期与起飞时刻", "载荷重量", "优先级", "地图定位", "请在地图上点选"):
-        assert expected in result["text"]
+    assert "地点还没完全解析" in result["text"]
+    assert "时间：" in result["text"]
+    assert "还差：载荷、优先级" in result["text"]
     assert tools.intake_store.list() == []
 
     tracer = next(
